@@ -1,0 +1,119 @@
+"""Incident Resolution Copilot: entry point, global bar and page router."""
+from __future__ import annotations
+
+from datetime import datetime
+
+import streamlit as st
+from dotenv import load_dotenv
+
+load_dotenv()
+
+from copilot import audit, config, engine  # noqa: E402  (after load_dotenv so env overrides apply)
+import ui_cards  # noqa: E402
+from ui_common import data_signature, get_kb, get_models  # noqa: E402
+
+st.set_page_config(page_title="Incident Resolution Copilot", page_icon=":material/support_agent:",
+                   layout="wide", initial_sidebar_state="collapsed")
+
+# --- Session state -----------------------------------------------------------
+st.session_state.setdefault("user_id", "team.lead")
+st.session_state.setdefault("model", config.DEFAULT_MODEL)
+st.session_state.setdefault("custom_incidents", [])
+st.session_state.setdefault("search", "")
+st.session_state.setdefault("results", {})      # (incident, user, model) -> Recommendation
+st.session_state.setdefault("chats", {})        # (incident, user) -> list of messages
+st.session_state.setdefault("notes", {})        # (incident, user) -> draft notes dict
+st.session_state.setdefault("decided", {})      # (incident, user) -> decision
+st.session_state.setdefault("updates", {})      # (incident, user) -> drafted stakeholder update
+# Baseline for auto-refresh: what the data looked like when this run started.
+st.session_state.data_sig = data_signature()
+
+
+@st.fragment(run_every=config.AUTO_REFRESH_SECONDS)
+def auto_refresh() -> None:
+    """Checks for changes every few seconds and refreshes the whole screen only when something
+    changed (another engineer's action, a new workbook, an edited runbook). Checking is cheap:
+    file timestamps only. Refreshing only on change avoids closing dialogs or losing typed text."""
+    sig = data_signature()
+    if sig != st.session_state.get("data_sig"):
+        st.session_state.data_sig = sig
+        st.rerun(scope="app")
+    st.caption(f":green[:material/sync:] {datetime.now():%H:%M:%S}", width="content",
+               help=f"Auto-refreshes within {config.AUTO_REFRESH_SECONDS} s when incidents, runbooks or "
+                    "the activity log change")
+
+# The model is configured in .env (GROQ_MODEL) and deliberately not shown on screen.
+models = get_models()
+if models and st.session_state.model not in models:
+    st.session_state.model = config.DEFAULT_MODEL if config.DEFAULT_MODEL in models else models[0]
+
+cockpit = st.Page("app_pages/workbench.py", title="Incident cockpit", icon=":material/support_agent:", default=True)
+pages = [
+    cockpit,
+    st.Page("app_pages/knowledge_health.py", title="Knowledge health", icon=":material/menu_book:"),
+    st.Page("app_pages/audit_log.py", title="Audit log", icon=":material/fact_check:"),
+    st.Page("app_pages/evals.py", title="Evals", icon=":material/rule:"),
+]
+page = st.navigation(pages, position="hidden")
+
+# Colours and fonts come from .streamlit/config.toml (the prototype's dark theme). This CSS only
+# does what theming can't: panel backgrounds per zone and left-aligned queue cards.
+st.html("""<style>
+.block-container {padding: 2.9rem 1rem 0.5rem 1rem; max-width: 100%;}
+.st-key-globalbar {background: #0E1628; border: 1px solid #1E2A44; border-radius: 10px; padding: 4px 14px;}
+.st-key-globalbar input {background: #16213A;}
+.st-key-queuepane {background: #0E1628; border: 1px solid #1E2A44; border-radius: 10px; padding: 12px 10px;}
+.st-key-copilot {background: #101A30; border-color: #22325A !important;}
+.st-key-incheader {border-bottom: 1px solid #1E2A44; padding-bottom: 6px;}
+</style>""" + ui_cards.CSS)
+# Live SLA timers: a static script (no user data) that ticks every [data-sla-rem] element each second.
+st.html(ui_cards.SCRIPT, unsafe_allow_javascript=True)
+
+
+def _ask_agent() -> None:
+    text = st.session_state.get("search", "").strip()
+    if not text:
+        return
+    user = config.USERS[st.session_state.user_id]
+    index = get_kb().index
+    app = engine.detect_system(index, text, user["groups"])
+    ask = {"number": f"ASK-{datetime.now():%H%M%S}", "opened": f"{datetime.now():%Y-%m-%d %H:%M}",
+           "application": app, "category": "", "error_code": engine.find_error_code(index, text),
+           "priority": "Search", "status": "Question", "short_description": text[:120], "description": text,
+           "source": "Agent search", "system_detected": True}
+    st.session_state.custom_incidents.insert(0, ask)
+    st.session_state.pending_selection = ask["number"]
+    st.session_state.search = ""
+    st.session_state.goto_cockpit = True
+    audit.log("agent_search", st.session_state.user_id, ask["number"], f"system: {app} (detected)")
+
+
+short = {config.MF: "MF", config.AS400: "AS400", config.JAVA: "Java"}
+with st.container(key="globalbar", horizontal=True, vertical_alignment="center", gap="small"):
+    st.markdown("**:blue[:material/bolt:] Incident Copilot**", width="content")
+    st.text_input("Search", key="search", placeholder="Search incidents, CIs, error codes… or ask the agent",
+                  label_visibility="collapsed", icon=":material/search:", width=380)
+    st.button("Ask agent", icon=":material/auto_awesome:", on_click=_ask_agent, type="primary",
+              help="Describe a problem in your own words; the agent finds the known fix.")
+    with st.popover("", icon=":material/apps:", help="Pages", type="tertiary"):
+        for p in pages:
+            st.page_link(p, label=p.title, icon=p.icon)
+    st.space("stretch")
+    kb = get_kb()
+    status = ":green[●]" if models else ":orange[●]"
+    st.caption(f"{status} {len(kb.documents)} runbooks · "
+               f"{sum(h.occurrences for h in kb.index.history):,} incidents indexed", width="content",
+               help=f"Freshness window {config.FRESHNESS_WINDOW_DAYS} days")
+    user = config.USERS[st.session_state.user_id]
+    st.caption(" · ".join(short.get(g, g) for g in user["groups"]), width="content")
+    auto_refresh()
+    st.selectbox("Signed in as", options=list(config.USERS), key="user_id", label_visibility="collapsed",
+                 format_func=lambda u: config.USERS[u]["name"], width=170)
+
+if not models:
+    st.warning("AI recommendations are unavailable. The copilot shows similar incidents only.",
+               icon=":material/cloud_off:")
+
+if st.session_state.pop("goto_cockpit", False) and page is not cockpit:
+    st.switch_page(cockpit)
+page.run()

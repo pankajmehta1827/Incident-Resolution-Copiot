@@ -1,0 +1,22 @@
+[
+{"id":"E01","application":"AS400 Warehouse System","text":"Pickers cannot update stock, inventory master file locked by the nightly allocation batch","repeat":true,"expected_codes":["ERR-AS400-001"]},
+{"id":"E02","application":"AS400 Warehouse System","text":"Pick allocation program fails, object no longer exists in WMSLIB after job crashed","repeat":true,"expected_codes":["ERR-AS400-002"]},
+{"id":"E03","application":"AS400 Warehouse System","text":"Picking lists not generating, QBATCH job queue is full of duplicate print jobs","repeat":true,"expected_codes":["ERR-AS400-003"]},
+{"id":"E04","application":"AS400 Warehouse System","text":"Stock sync to Java portal stopped, WMS_TO_JAVA_DQ reader ended abnormally","repeat":true,"expected_codes":["ERR-AS400-005"]},
+{"id":"E05","application":"AS400 Warehouse System","text":"Warehouse manager asks why bin C-104 physical count differs from the system","repeat":true,"expected_codes":["ERR-AS400-006"]},
+{"id":"E06","application":"Java Part Ordering System","text":"Order routing service runs out of database connections, Hikari pool exhausted","repeat":true,"expected_codes":["ERR-JAVA-008"]},
+{"id":"E07","application":"Java Part Ordering System","text":"Part compatibility check throws null pointer for supplier parts","repeat":true,"expected_codes":["ERR-JAVA-102"]},
+{"id":"E08","application":"Java Part Ordering System","text":"Customer checkout fails, session token expired after long cart session","repeat":true,"expected_codes":["ERR-JAVA-401"]},
+{"id":"E09","application":"Java Part Ordering System","text":"OEM supplier endpoint returning too many requests during price ingestion","repeat":true,"expected_codes":["ERR-JAVA-429"]},
+{"id":"E10","application":"Java Part Ordering System","text":"504 from the gateway when the parts search calls the AS400 inventory API","repeat":true,"expected_codes":["ERR-JAVA-504"]},
+{"id":"E11","application":"Mainframe Order Processing System","text":"Order status updates failing, SQLCODE -904 resource unavailable on ORDER_TS","repeat":true,"expected_codes":["ERR-MF-DB2-904"]},
+{"id":"E12","application":"Mainframe Order Processing System","text":"EDI order reader finds no messages on ORD.INBOUND, reason 2033","repeat":true,"expected_codes":["ERR-MF-MQ-2033"]},
+{"id":"E13","application":"Mainframe Order Processing System","text":"Batch program ORDPROC2 abends 0C4 on an order with thousands of lines","repeat":true,"expected_codes":["ERR-MF-S0C4"]},
+{"id":"E14","application":"Mainframe Order Processing System","text":"CICS transaction ORD1 fails, load module CICSORD1 not found after release","repeat":true,"expected_codes":["ERR-MF-S806"]},
+{"id":"E15","application":"Mainframe Order Processing System","text":"Job cannot open order history VSAM file, RACF says not authorised","repeat":true,"expected_codes":["ERR-MF-S913"]},
+{"id":"N01","application":"Java Part Ordering System","text":"Marketing banner font colour wrong in dark theme","repeat":false,"expected_codes":[]},
+{"id":"N02","application":"AS400 Warehouse System","text":"Barcode scanner firmware update request for warehouse handhelds","repeat":false,"expected_codes":[]},
+{"id":"N03","application":"Mainframe Order Processing System","text":"Request to add a new cost centre code to the chart of accounts screen text","repeat":false,"expected_codes":[]},
+{"id":"N04","application":"Java Part Ordering System","text":"Please add Hindi translations to the confirmation email","repeat":false,"expected_codes":[]},
+{"id":"N05","application":"AS400 Warehouse System","text":"New starter needs a laptop and badge for the Pune office","repeat":false,"expected_codes":[]}
+]

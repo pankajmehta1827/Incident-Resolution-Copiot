@@ -1,0 +1,21 @@
+[
+{"id":"E01","application":"Oracle","text":"Agents get resource busy NOWAIT error saving order, row lock on ORDERS","repeat":true,"expected":["INC0901101","INC0842210","INC0887342"]},
+{"id":"E02","application":"Oracle","text":"New connections to ORDPRD refused, TNS no appropriate service handler found","repeat":true,"expected":["INC0911043","INC0850017"]},
+{"id":"E03","application":"Oracle","text":"Nightly RMAN backup report FAILED, cannot create file on backup share","repeat":true,"expected":["INC0915870","INC0889990","INC0861204"]},
+{"id":"E04","application":"Oracle","text":"Order search extremely slow after month end load, plan changed to full scan","repeat":true,"expected":["INC0823311","INC0874412"]},
+{"id":"E05","application":"MF","text":"PAYR010 data exception abend 0C7 on HR amount field","repeat":true,"expected":["INC0905512","INC0866001"]},
+{"id":"E06","application":"MF","text":"Billing job out of space abend SB37 on output dataset","repeat":true,"expected":["INC0833040"]},
+{"id":"E07","application":"MF","text":"CICSPRD1 short on storage DFHSM0131, screens hanging","repeat":true,"expected":["INC0848801"]},
+{"id":"E08","application":"MF","text":"PAYR020 failed SQLCODE -911 deadlock with online payroll PY01","repeat":true,"expected":["INC0899321"]},
+{"id":"E09","application":"AS400","text":"Spool files stuck RDY on PRT01, printer writer ended","repeat":true,"expected":["INC0908800","INC0871133"]},
+{"id":"E10","application":"AS400","text":"Jobs waiting in WHSJOBQ, nothing running after IPL","repeat":true,"expected":["INC0896654","INC0859912"]},
+{"id":"E11","application":"AS400","text":"Supervisor profile disabled CPF1394 cannot sign on","repeat":true,"expected":["INC0884470"]},
+{"id":"E12","application":"Java","text":"checkout-service OOMKilled pods, heap space errors","repeat":true,"expected":["INC0909934"]},
+{"id":"E13","application":"Java","text":"order-api 504 gateway timeout, read timed out to pricing-service","repeat":true,"expected":["INC0901877","INC0845560"]},
+{"id":"E14","application":"Java","text":"Argo CD app degraded after release, readiness probe failing","repeat":true,"expected":["INC0893310","INC0877125"]},
+{"id":"N01","application":"Java","text":"Marketing banner font colour wrong in dark theme","repeat":false,"expected":[]},
+{"id":"N02","application":"Oracle","text":"Request for new read-only reporting role for finance analysts","repeat":false,"expected":[]},
+{"id":"N03","application":"AS400","text":"Barcode scanner firmware update request for warehouse handhelds","repeat":false,"expected":[]},
+{"id":"N04","application":"MF","text":"Request to add a new cost centre code to the chart of accounts screen text","repeat":false,"expected":[]},
+{"id":"N05","application":"Java","text":"Please add Hindi translations to the checkout confirmation email","repeat":false,"expected":[]}
+]

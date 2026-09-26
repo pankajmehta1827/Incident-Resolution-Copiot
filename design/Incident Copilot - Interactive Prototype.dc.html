@@ -1,0 +1,478 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Incident Copilot</title>
+<script src="./support.js"></script>
+</head>
+<body>
+<x-dc>
+<helmet>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&amp;family=JetBrains+Mono:wght@400;600&amp;display=swap">
+<style>
+body{margin:0;font-family:'IBM Plex Sans',system-ui,sans-serif;background:#0B1220;color:#E6ECF5}
+button{font-family:inherit;cursor:pointer}
+button:disabled{cursor:default;opacity:.55}
+a{color:#8DB4FF}a:hover{color:#B9D0FF}
+.sr{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0)}
+</style>
+</helmet>
+<div style="width: 1440px; height: 900px; box-sizing: border-box; display: flex; flex-direction: column; background: #0B1220; color: #E6ECF5; font-family: 'IBM Plex Sans', system-ui, sans-serif; font-size: 14px; position: relative; overflow: hidden">
+
+<div style="height: 56px; flex-shrink: 0; display: flex; align-items: center; gap: 20px; padding: 0 20px; background: #0E1628; border-bottom: 1px solid #1E2A44">
+<div style="display: flex; align-items: center; gap: 10px">
+<div style="width: 28px; height: 28px; border-radius: 8px; background: {{accent}}; display: flex; align-items: center; justify-content: center">
+<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#0B1220" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L4 14h7l-1 8 9-12h-7z"></path></svg>
+</div>
+<div style="font-weight: 600; font-size: 16px; letter-spacing: 0.2px">Incident Copilot</div>
+</div>
+<div style="width: 440px; height: 34px; display: flex; align-items: center; gap: 8px; padding: 0 12px; background: #16213A; border: 1px solid #24324F; border-radius: 8px; color: #8FA0BA">
+<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="#8FA0BA" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+<span>Search incidents, CIs, error codes…</span>
+</div>
+<div style="flex-grow: 1"></div>
+<div style="display: flex; gap: 8px; align-items: center; color: #8FA0BA">
+<span style="width: 8px; height: 8px; border-radius: 4px; background: #4ADE80"></span>
+<span>Sources synced · 365-day window</span>
+</div>
+<div style="padding: 6px 12px; border: 1px solid #24324F; border-radius: 20px; color: #C9D4E5">Support Team Lead</div>
+</div>
+
+<div style="flex-grow: 1; display: flex; min-height: 0">
+
+<div style="width: 300px; flex-shrink: 0; display: flex; flex-direction: column; background: #0E1628; border-right: 1px solid #1E2A44">
+<div style="padding: 16px 16px 10px; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; align-items: baseline">
+<div style="font-weight: 600; font-size: 15px">Queue</div>
+<div style="color: #8FA0BA; font-size: 13px">{{queueCount}} shown · sorted by SLA risk</div>
+</div>
+<div style="display: flex; gap: 6px">
+<sc-for list="{{filters}}" as="f" hint-placeholder-count="3">
+<button onClick="{{f.pick}}" style="padding: 5px 10px; border-radius: 16px; font-size: 13px; background: {{f.bg}}; color: {{f.fg}}; border: 1px solid {{f.bd}}">{{f.label}}</button>
+</sc-for>
+</div>
+</div>
+<div style="flex-grow: 1; overflow: auto; padding: 4px 12px 12px; display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{list}}" as="it" hint-placeholder-count="5">
+<button onClick="{{it.pick}}" style="text-align: left; display: flex; flex-direction: column; gap: 6px; padding: 12px; border-radius: 10px; color: #E6ECF5; background: {{it.bg}}; border: 1px solid {{it.bd}}">
+<div style="display: flex; align-items: center; gap: 8px; width: 100%">
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #C9D4E5">{{it.id}}</span>
+<span style="font-size: 11px; font-weight: 700; padding: 1px 6px; border-radius: 4px; color: #0B1220; background: {{it.sevColor}}">{{it.sev}}</span>
+<span style="flex-grow: 1"></span>
+<span style="font-size: 12px; color: #8FA0BA">{{it.sys}}</span>
+</div>
+<div style="font-size: 14px; line-height: 1.35">{{it.title}}</div>
+<div style="display: flex; align-items: center; gap: 8px; width: 100%">
+<div style="flex-grow: 1; height: 4px; border-radius: 2px; background: #24324F; overflow: hidden"><div style="height: 4px; width: {{it.slaPct}}%; background: {{it.slaColor}}"></div></div>
+<span style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: {{it.slaColor}}">{{it.slaText}}</span>
+</div>
+<sc-if value="{{it.hasRepeats}}" hint-placeholder-val="{{false}}">
+<div style="font-size: 12px; color: #8DB4FF">Repeat · {{it.seen}} linked incidents</div>
+</sc-if>
+</button>
+</sc-for>
+</div>
+<div style="padding: 10px 16px; border-top: 1px solid #1E2A44; color: #8FA0BA; font-size: 12px">Sample data for the prototype</div>
+</div>
+
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column">
+<div style="padding: 16px 24px 14px; display: flex; flex-direction: column; gap: 10px; border-bottom: 1px solid #1E2A44; background: #0B1220">
+<div style="display: flex; align-items: center; gap: 10px">
+<span style="font-family: 'JetBrains Mono', monospace; color: #C9D4E5">{{inc.id}}</span>
+<span style="font-size: 12px; font-weight: 700; padding: 3px 8px; border-radius: 6px; color: #0B1220; background: {{inc.sevColor}}">{{inc.sevLabel}}</span>
+<span style="font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid #3A4B6E; color: #C9D4E5">{{statusText}}</span>
+<span style="font-size: 12px; padding: 3px 8px; border-radius: 6px; border: 1px solid #3A4B6E; color: #C9D4E5">Owner · {{ownerText}}</span>
+<span style="flex-grow: 1"></span>
+<button onClick="{{onAck}}" disabled="{{ackDisabled}}" style="padding: 7px 14px; border-radius: 8px; background: transparent; color: #E6ECF5; border: 1px solid #3A4B6E; font-size: 13px">{{ackLabel}}</button>
+<button onClick="{{onResolve}}" disabled="{{resolveDisabled}}" style="padding: 7px 14px; border-radius: 8px; background: {{accent}}; color: #0B1220; border: 1px solid {{accent}}; font-size: 13px; font-weight: 600">{{resolveLabel}}</button>
+</div>
+<div style="display: flex; align-items: flex-end; gap: 24px">
+<div style="flex-grow: 1; min-width: 0">
+<div style="font-size: 22px; font-weight: 600; line-height: 1.25">{{inc.title}}</div>
+<div style="color: #8FA0BA; margin-top: 4px">{{inc.sys}} · {{inc.component}} · {{inc.area}} · opened {{inc.opened}}</div>
+</div>
+<div style="width: 190px; flex-shrink: 0; display: flex; flex-direction: column; gap: 6px; padding: 10px 12px; border-radius: 10px; background: {{slaBoxBg}}; border: 1px solid {{slaColor}}">
+<div style="display: flex; justify-content: space-between; font-size: 12px; color: #C9D4E5"><span>{{slaCaption}}</span><span>{{slaPctText}}</span></div>
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 22px; font-weight: 600; color: {{slaColor}}">{{slaText}}</div>
+<div style="height: 4px; border-radius: 2px; background: #24324F; overflow: hidden"><div style="height: 4px; width: {{slaPct}}%; background: {{slaColor}}"></div></div>
+</div>
+</div>
+</div>
+
+<div style="display: flex; gap: 4px; padding: 0 20px; border-bottom: 1px solid #1E2A44">
+<sc-for list="{{tabs}}" as="tb" hint-placeholder-count="4">
+<button onClick="{{tb.pick}}" style="padding: 12px 12px 10px; background: transparent; border: none; border-bottom: 2px solid {{tb.line}}; color: {{tb.fg}}; font-size: 14px; font-weight: {{tb.weight}}">{{tb.label}}</button>
+</sc-for>
+</div>
+
+<div style="flex-grow: 1; overflow: auto; padding: 20px 24px; display: flex; flex-direction: column; gap: 16px">
+
+<sc-if value="{{isOverview}}" hint-placeholder-val="{{true}}">
+<div style="display: flex; flex-direction: column; gap: 16px">
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px">
+<div style="padding: 14px; border-radius: 10px; background: #111A2C; border: 1px solid #1E2A44"><div style="color: #8FA0BA; font-size: 12px">Business impact</div><div style="font-weight: 600; margin-top: 4px">{{inc.impact}}</div></div>
+<div style="padding: 14px; border-radius: 10px; background: #111A2C; border: 1px solid #1E2A44"><div style="color: #8FA0BA; font-size: 12px">CI path</div><div style="font-weight: 600; margin-top: 4px">{{inc.ci}}</div></div>
+<div style="padding: 14px; border-radius: 10px; background: #111A2C; border: 1px solid #1E2A44"><div style="color: #8FA0BA; font-size: 12px">Last change</div><div style="font-weight: 600; margin-top: 4px">{{inc.change}}</div></div>
+</div>
+<div style="padding: 16px; border-radius: 10px; background: #111A2C; border: 1px solid #1E2A44; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between"><div style="font-weight: 600">{{inc.sparkLabel}}</div><div style="color: #8FA0BA; font-size: 12px">last 60 min · 5-min buckets</div></div>
+<svg width="100%" height="120" viewBox="0 0 560 120" preserveAspectRatio="none" aria-label="Trend for this incident">
+<line x1="0" y1="119" x2="560" y2="119" stroke="#24324F" stroke-width="1"></line>
+<line x1="0" y1="60" x2="560" y2="60" stroke="#1E2A44" stroke-width="1" stroke-dasharray="4 4"></line>
+<polygon points="{{sparkArea}}" fill="{{inc.sevColor}}" fill-opacity="0.14"></polygon>
+<polyline points="{{sparkLine}}" fill="none" stroke="{{inc.sevColor}}" stroke-width="2.5" stroke-linejoin="round"></polyline>
+</svg>
+<div style="display: flex; justify-content: space-between; color: #8FA0BA; font-size: 12px"><span>-60 min</span><span>Peak {{sparkPeak}}</span><span>now</span></div>
+</div>
+<div style="padding: 16px; border-radius: 10px; background: #111A2C; border: 1px solid #1E2A44">
+<div style="font-weight: 600; margin-bottom: 8px">Latest activity</div>
+<sc-for list="{{recent}}" as="ev" hint-placeholder-count="3">
+<div style="display: flex; gap: 12px; padding: 6px 0; border-top: 1px solid #1E2A44"><span style="font-family: 'JetBrains Mono', monospace; color: #8FA0BA; width: 44px">{{ev.t}}</span><span>{{ev.text}}</span></div>
+</sc-for>
+</div>
+</div>
+</sc-if>
+
+<sc-if value="{{isTimeline}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column">
+<sc-for list="{{timeline}}" as="ev" hint-placeholder-count="5">
+<div style="display: flex; gap: 14px">
+<div style="display: flex; flex-direction: column; align-items: center; width: 14px">
+<div style="width: 10px; height: 10px; border-radius: 5px; margin-top: 5px; background: {{ev.dot}}"></div>
+<div style="flex-grow: 1; width: 2px; background: #24324F"></div>
+</div>
+<div style="padding-bottom: 16px">
+<div style="font-family: 'JetBrains Mono', monospace; font-size: 12px; color: #8FA0BA">{{ev.t}} · {{ev.who}}</div>
+<div style="margin-top: 2px">{{ev.text}}</div>
+</div>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{isRelated}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 10px">
+<sc-for list="{{related}}" as="r" hint-placeholder-count="3">
+<div style="display: flex; align-items: center; gap: 14px; padding: 14px; border-radius: 10px; background: #111A2C; border: 1px solid #1E2A44">
+<span style="font-size: 12px; padding: 2px 8px; border-radius: 6px; border: 1px solid #3A4B6E; color: #C9D4E5; width: 76px; text-align: center">{{r.kind}}</span>
+<span style="font-family: 'JetBrains Mono', monospace; color: #8DB4FF; width: 120px">{{r.id}}</span>
+<span>{{r.text}}</span>
+</div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{isComms}}" hint-placeholder-val="{{false}}">
+<div style="display: flex; flex-direction: column; gap: 12px">
+<sc-if value="{{hasDraft}}" hint-placeholder-val="{{false}}">
+<div style="padding: 16px; border-radius: 10px; background: #111A2C; border: 1px solid #1E2A44; display: flex; flex-direction: column; gap: 12px">
+<div style="display: flex; justify-content: space-between; align-items: center"><div style="font-weight: 600">Stakeholder update · drafted by copilot</div><div style="font-size: 12px; color: #8FA0BA">Review before sending</div></div>
+<div style="padding: 14px; border-radius: 8px; background: #0B1220; border: 1px solid #24324F; line-height: 1.55; white-space: pre-line">{{inc.comms}}</div>
+<div style="display: flex; gap: 8px; align-items: center">
+<button onClick="{{onSend}}" disabled="{{sentDisabled}}" style="padding: 8px 14px; border-radius: 8px; background: {{accent}}; color: #0B1220; border: 1px solid {{accent}}; font-weight: 600">{{sendLabel}}</button>
+<span style="color: #8FA0BA; font-size: 13px">To: Parts ops channel, service owner</span>
+</div>
+</div>
+</sc-if>
+<sc-if value="{{noDraft}}" hint-placeholder-val="{{true}}">
+<div style="padding: 24px; border-radius: 10px; border: 1px dashed #3A4B6E; display: flex; align-items: center; gap: 16px">
+<div style="flex-grow: 1; color: #C9D4E5">No update drafted yet. The copilot writes one from the timeline and cause; you review and send.</div>
+<button onClick="{{onDraft}}" style="padding: 8px 14px; border-radius: 8px; background: transparent; color: #E6ECF5; border: 1px solid #3A4B6E">Draft update</button>
+</div>
+</sc-if>
+</div>
+</sc-if>
+
+</div>
+</div>
+
+<div style="width: 440px; flex-shrink: 0; display: flex; flex-direction: column; background: #101A30; border-left: 1px solid #22325A">
+<div style="padding: 14px 18px; display: flex; align-items: center; gap: 10px; border-bottom: 1px solid #22325A">
+<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="{{accent}}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l1.8 4.7L18.5 9.5l-4.7 1.8L12 16l-1.8-4.7L5.5 9.5l4.7-1.8z"></path><path d="M19 15l.8 2.2 2.2.8-2.2.8L19 21l-.8-2.2L16 18l2.2-.8z"></path></svg>
+<div style="font-weight: 600; font-size: 16px">Copilot</div>
+<span style="flex-grow: 1"></span>
+<span style="font-size: 12px; padding: 3px 8px; border-radius: 6px; color: {{confColor}}; background: {{confBg}}">{{inc.match.conf}} confidence · {{scoreText}}</span>
+<button onClick="{{toggleWhy}}" style="font-size: 12px; padding: 3px 8px; border-radius: 6px; background: transparent; color: #8DB4FF; border: 1px solid #2E4270">{{whyLabel}}</button>
+</div>
+
+<div style="flex-grow: 1; overflow: auto; padding: 14px 18px; display: flex; flex-direction: column; gap: 14px">
+
+<sc-if value="{{showWhy}}" hint-placeholder-val="{{false}}">
+<div style="padding: 12px 14px; border-radius: 10px; background: #0B1220; border: 1px solid #2E4270">
+<div style="font-size: 12px; color: #8FA0BA; margin-bottom: 6px">Why it matched {{inc.match.id}} (seen {{inc.match.seen}}×)</div>
+<sc-for list="{{reasons}}" as="rs" hint-placeholder-count="3">
+<div style="display: flex; gap: 8px; padding: 3px 0"><span style="color: {{rs.color}}; width: 14px">{{rs.mark}}</span><span>{{rs.text}}</span></div>
+</sc-for>
+</div>
+</sc-if>
+
+<sc-if value="{{isLowConf}}" hint-placeholder-val="{{false}}">
+<div style="padding: 10px 12px; border-radius: 8px; background: rgba(248,113,113,0.12); border: 1px solid rgba(248,113,113,0.4); color: #FCA5A5; font-size: 13px">Low confidence: treat this as a lead, not an answer. Escalation is recommended.</div>
+</sc-if>
+
+<div>
+<div style="font-size: 12px; color: #8FA0BA; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px">Summary</div>
+<div style="line-height: 1.5">{{inc.summary}}</div>
+</div>
+
+<div style="padding: 14px; border-radius: 10px; background: #16213A; border: 1px solid #22325A">
+<div style="font-size: 12px; color: #8FA0BA; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px">Likely cause</div>
+<div style="line-height: 1.5; font-weight: 500">{{inc.cause}}</div>
+<div style="display: flex; flex-direction: column; gap: 4px; margin-top: 10px">
+<sc-for list="{{inc.evidence}}" as="e" hint-placeholder-count="3">
+<div style="font-size: 13px; color: #C9D4E5; display: flex; gap: 8px"><span style="color: {{accent}}">›</span><span>{{e}}</span></div>
+</sc-for>
+</div>
+</div>
+
+<div style="padding: 14px; border-radius: 10px; background: #16213A; border: 1px solid #22325A; display: flex; flex-direction: column; gap: 10px">
+<div style="display: flex; justify-content: space-between; align-items: center">
+<div style="font-size: 12px; color: #8FA0BA; text-transform: uppercase; letter-spacing: 1px">Recommended steps</div>
+<div style="font-size: 12px; color: #C9D4E5">{{doneCount}} of {{stepCount}} done</div>
+</div>
+<div style="height: 4px; border-radius: 2px; background: #24324F; overflow: hidden"><div style="height: 4px; width: {{stepPct}}%; background: #4ADE80"></div></div>
+<sc-for list="{{steps}}" as="s" hint-placeholder-count="3">
+<div style="display: flex; gap: 10px; align-items: flex-start; padding: 10px; border-radius: 8px; background: #0F1829; border: 1px solid {{s.bd}}">
+<div style="width: 22px; height: 22px; flex-shrink: 0; border-radius: 11px; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 700; background: {{s.numBg}}; color: #0B1220">{{s.mark}}</div>
+<div style="flex-grow: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+<div style="line-height: 1.4">{{s.label}}</div>
+<div style="display: flex; align-items: center; gap: 8px">
+<span style="font-size: 11px; padding: 1px 6px; border-radius: 4px; border: 1px solid {{s.riskColor}}; color: {{s.riskColor}}">{{s.risk}} risk</span>
+<span style="font-size: 12px; color: #8FA0BA">{{s.statusText}}</span>
+<span style="flex-grow: 1"></span>
+<sc-if value="{{s.canRun}}" hint-placeholder-val="{{false}}">
+<button onClick="{{s.run}}" style="font-size: 12px; padding: 4px 10px; border-radius: 6px; background: {{accent}}; color: #0B1220; border: none; font-weight: 600">Run</button>
+</sc-if>
+<sc-if value="{{s.canRequest}}" hint-placeholder-val="{{false}}">
+<button onClick="{{s.request}}" style="font-size: 12px; padding: 4px 10px; border-radius: 6px; background: transparent; color: #FBBF24; border: 1px solid #FBBF24">Request approval</button>
+</sc-if>
+</div>
+</div>
+</div>
+</sc-for>
+</div>
+
+<div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px">
+<button onClick="{{onDraft}}" style="padding: 9px 6px; border-radius: 8px; background: transparent; color: #E6ECF5; border: 1px solid #3A4B6E; font-size: 13px">Draft update</button>
+<button onClick="{{onEscalate}}" disabled="{{escDisabled}}" style="padding: 9px 6px; border-radius: 8px; background: transparent; color: #E6ECF5; border: 1px solid #3A4B6E; font-size: 13px">{{escLabel}}</button>
+<button onClick="{{onProblem}}" disabled="{{prbDisabled}}" style="padding: 9px 6px; border-radius: 8px; background: transparent; color: {{prbColor}}; border: 1px solid {{prbColor}}; font-size: 13px">{{prbLabel}}</button>
+</div>
+
+<div style="display: flex; align-items: center; gap: 8px; padding-top: 4px; border-top: 1px solid #22325A">
+<div style="font-size: 12px; color: #8FA0BA; flex-grow: 1; padding-top: 10px">Sources: {{inc.match.id}} · {{kbId}}</div>
+<div style="display: flex; gap: 6px; padding-top: 10px">
+<button onClick="{{fbUp}}" aria-label="Helpful" style="padding: 4px 10px; border-radius: 6px; font-size: 12px; background: {{upBg}}; color: #E6ECF5; border: 1px solid #3A4B6E">Helpful</button>
+<button onClick="{{fbDown}}" aria-label="Not helpful" style="padding: 4px 10px; border-radius: 6px; font-size: 12px; background: {{downBg}}; color: #E6ECF5; border: 1px solid #3A4B6E">Not helpful</button>
+</div>
+</div>
+
+<div style="display: flex; flex-direction: column; gap: 8px">
+<sc-for list="{{qa}}" as="q" hint-placeholder-count="0">
+<div style="display: flex; flex-direction: column; gap: 6px">
+<div style="align-self: flex-end; max-width: 85%; padding: 8px 12px; border-radius: 12px 12px 2px 12px; background: #24324F">{{q.q}}</div>
+<div style="max-width: 92%; padding: 10px 12px; border-radius: 12px 12px 12px 2px; background: #0B1220; border: 1px solid #22325A; line-height: 1.5">{{q.a}}</div>
+</div>
+</sc-for>
+</div>
+</div>
+
+<div style="padding: 12px 18px 16px; border-top: 1px solid #22325A; display: flex; flex-direction: column; gap: 8px">
+<div style="display: flex; gap: 6px; flex-wrap: wrap">
+<sc-for list="{{chips}}" as="c" hint-placeholder-count="3">
+<button onClick="{{c.pick}}" style="font-size: 12px; padding: 4px 10px; border-radius: 14px; background: transparent; color: #8DB4FF; border: 1px solid #2E4270">{{c.label}}</button>
+</sc-for>
+</div>
+<div style="display: flex; gap: 8px">
+<label for="ask" class="sr">Ask the copilot</label>
+<input id="ask" value="{{askText}}" onChange="{{onAskChange}}" onKeyDown="{{onAskKey}}" placeholder="Ask about this incident…" style="flex-grow: 1; height: 38px; padding: 0 12px; border-radius: 8px; background: #0B1220; color: #E6ECF5; border: 1px solid #2E4270; font-family: inherit; font-size: 14px">
+<button onClick="{{onAsk}}" style="padding: 0 14px; border-radius: 8px; background: {{accent}}; color: #0B1220; border: none; font-weight: 600">Ask</button>
+</div>
+</div>
+</div>
+
+</div>
+
+<sc-if value="{{hasToast}}" hint-placeholder-val="{{false}}">
+<div style="position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%); padding: 12px 18px; border-radius: 10px; background: #E6ECF5; color: #0B1220; font-weight: 500; box-shadow: 0 10px 30px rgba(0,0,0,0.4)">{{toast}}</div>
+</sc-if>
+
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"accent":{"editor":"color","default":"#5B9BFF","options":["#5B9BFF","#3DD6C3","#FF9A5C","#C4A7FF"]},"$preview":{"width":1440,"height":900}}'>
+var INCIDENTS = [
+  { id: 'INC0003317', sev: 'P1', sys: 'Java', system: 'Java Part Ordering', title: 'Gateway timeout calling AS400 Inventory API', component: 'API Gateway', area: 'Parts Catalog and Search', opened: '2026-09-18 20:26', status: 'Escalated', owner: 'L2 Java', slaMin: 42, slaTotal: 240,
+    match: { id: 'INC0001485', score: 0.90, conf: 'High', seen: 294 },
+    summary: 'Parts lookups time out at the gateway with ERR-JAVA-504. Same signature as a known repeat incident.',
+    cause: 'The AS400 REST adapter connection pool is exhausted, so gateway calls wait past the socket timeout.',
+    evidence: ['ERR-JAVA-504 spikes in gateway logs', 'Adapter pool at max connections', 'Fixed the same way in INC0001485'],
+    reasons: [['+', 'Same error code ERR-JAVA-504'], ['+', 'Same CI path: Gateway to AS400 adapter'], ['+', 'Symptom text similarity 0.90'], ['~', 'Differs: opened outside the batch window']],
+    steps: [{ label: 'Confirm 504 timeouts in gateway logs and metrics', risk: 'Low' }, { label: 'Raise adapter socket timeout to 30 s', risk: 'Medium' }, { label: 'Deploy hotfix patch v2.4.1', risk: 'High' }],
+    impact: 'Parts search degraded', ci: 'Gateway → AS400 adapter', change: 'CHG [id] · [time]',
+    sparkLabel: 'ERR-JAVA-504 errors', spark: [4, 5, 4, 6, 5, 7, 9, 14, 22, 31, 38, 41],
+    timeline: [['20:26', 'Monitoring', 'Opened from monitoring alert'], ['20:31', 'Monitoring', '3 related alerts correlated'], ['20:40', 'Dispatcher', 'Escalated to L2 Java'], ['20:41', 'Copilot', 'Matched INC0001485 at 0.90']],
+    related: [['Incident', 'INC0001485', 'Same timeout, resolved 2026-09-19'], ['Knowledge', 'KB [id]', 'AS400 adapter pool tuning'], ['Change', 'CHG [id]', 'Last change on the adapter']],
+    comms: 'P1 update: Parts search is slow because calls to the AS400 inventory service are timing out.\nWe have matched a known fix and are applying it now.\nNext update in 30 minutes.',
+    qa: { rollback: 'Step 2 is a config change: revert the socket timeout to its previous value. The v2.4.1 hotfix rolls back by redeploying v2.4.0, as recorded in INC0001485.', impact: 'Parts Catalog and Search: users see slow or failed part lookups. The number of affected users is not in the approved sources.' } },
+  { id: 'INC0003302', sev: 'P1', sys: 'Mainframe', system: 'Mainframe Order Processing', title: 'Nightly order batch ORDB210 abended S0C7', component: 'Batch scheduler', area: 'Order Processing', opened: '2026-09-26 02:14', status: 'Assigned', owner: 'L2 Mainframe', slaMin: 70, slaTotal: 240,
+    match: { id: 'INC0002211', score: 0.82, conf: 'High', seen: 37 },
+    summary: 'Order posting stopped with a data exception; downstream invoicing is waiting on it.',
+    cause: 'A non-numeric value in a packed-decimal quantity field of the inbound order file.',
+    evidence: ['S0C7 in step ORD030 of job ORDB210', 'Dump offset points to the QTY field', 'Same abend in INC0002211 after a feed change'],
+    reasons: [['+', 'Same abend code S0C7'], ['+', 'Same job and step'], ['+', 'Symptom text similarity 0.82'], ['~', 'Differs: different input file date']],
+    steps: [{ label: 'Locate the bad record from the dump offset', risk: 'Low' }, { label: 'Move the bad record to the suspense file', risk: 'Medium' }, { label: 'Restart ORDB210 from step ORD030', risk: 'High' }],
+    impact: 'Invoices delayed', ci: 'ORDB210 → Invoicing', change: 'No recent change',
+    sparkLabel: 'Orders waiting to post', spark: [2, 3, 5, 8, 12, 18, 25, 33, 40, 48, 55, 61],
+    timeline: [['02:14', 'Scheduler', 'Job ORDB210 abended S0C7'], ['02:20', 'Operations', 'Incident raised, P1'], ['02:22', 'Copilot', 'Matched INC0002211 at 0.82']],
+    related: [['Incident', 'INC0002211', 'Same abend after feed change'], ['Knowledge', 'KB [id]', 'Handling S0C7 in order batch']],
+    comms: 'P1 update: The nightly order posting job stopped on one bad record.\nInvoicing is delayed until it is restarted. Fix in progress.\nNext update in 30 minutes.',
+    qa: { rollback: 'Moving the record to suspense is reversible: re-insert it after correction. A restart from ORD030 is safe because earlier steps committed.', impact: 'Order Processing: invoicing waits on this job. Order volume affected is not in the approved sources.' } },
+  { id: 'INC0003295', sev: 'P2', sys: 'AS400', system: 'AS400 Warehouse', title: 'Pick list job PCKLST stuck in MSGW', component: 'Warehouse batch', area: 'Warehouse Picking', opened: '2026-09-26 07:05', status: 'New', owner: 'Unassigned', slaMin: 180, slaTotal: 480,
+    match: { id: 'INC0001930', score: 0.76, conf: 'Medium', seen: 12 },
+    summary: 'The pick list job is waiting on a message; pickers are working from the previous list.',
+    cause: 'A record lock on file PICKHDR held by an interactive session.',
+    evidence: ['Job status MSGW on CPF5027', 'Lock held on PICKHDR', 'Similar lock in INC0001930'],
+    reasons: [['+', 'Same message CPF5027'], ['+', 'Same file PICKHDR'], ['~', 'Different job name in past case']],
+    steps: [{ label: 'Identify the lock holder with WRKOBJLCK', risk: 'Low' }, { label: 'Reply R to the job message to retry', risk: 'Medium' }, { label: 'End the locking session after user confirms', risk: 'High' }],
+    impact: 'Picking on stale list', ci: 'PCKLST → PICKHDR', change: 'No recent change',
+    sparkLabel: 'Lock wait (seconds)', spark: [0, 0, 0, 0, 30, 60, 90, 120, 150, 180, 210, 240],
+    timeline: [['07:05', 'Monitoring', 'PCKLST entered MSGW'], ['07:09', 'Copilot', 'Matched INC0001930 at 0.76']],
+    related: [['Incident', 'INC0001930', 'PICKHDR lock by interactive user']],
+    comms: 'P2 update: The warehouse pick list job is paused by a file lock.\nPickers can continue on the current list. Fix expected shortly.',
+    qa: { rollback: 'Replying R only retries the read. Ending a session cannot be undone; the user must re-enter unsaved work.', impact: 'Warehouse Picking: new orders are not added to pick lists until the job resumes.' } },
+  { id: 'INC0003288', sev: 'P2', sys: 'Java', system: 'Java Part Ordering', title: 'Parts search responses slower than 5 s', component: 'Search service', area: 'Parts Catalog and Search', opened: '2026-09-26 06:40', status: 'In progress', owner: 'L2 Java', slaMin: 300, slaTotal: 480,
+    match: { id: 'INC0002790', score: 0.64, conf: 'Medium', seen: 9 },
+    summary: 'Search latency rose after the nightly index rebuild and is slowly recovering.',
+    cause: 'The search cache is cold after the nightly index rebuild.',
+    evidence: ['Cache hit rate dropped after 05:00', 'Latency falls as cache warms', 'Similar pattern in INC0002790'],
+    reasons: [['+', 'Same service and time pattern'], ['~', 'Different latency level'], ['~', 'Similarity 0.64 only']],
+    steps: [{ label: 'Check the cache hit-rate dashboard', risk: 'Low' }, { label: 'Warm the cache with the top 500 queries', risk: 'Medium' }],
+    impact: 'Slow search', ci: 'Search service → cache', change: 'Nightly index rebuild',
+    sparkLabel: 'p95 latency (s)', spark: [1, 1, 2, 6, 7, 7, 6, 6, 5, 5, 5, 5],
+    timeline: [['06:40', 'Monitoring', 'Latency alert'], ['06:52', 'L2 Java', 'Picked up'], ['06:53', 'Copilot', 'Matched INC0002790 at 0.64']],
+    related: [['Incident', 'INC0002790', 'Cold cache after rebuild']],
+    comms: 'P2 update: Parts search is slower than normal after overnight maintenance.\nWe are warming the cache; speed should return within the hour.',
+    qa: { rollback: 'Cache warming is read-only and needs no rollback.', impact: 'Parts Catalog and Search: slower responses, no failures reported in the sources.' } },
+  { id: 'INC0003270', sev: 'P3', sys: 'AS400', system: 'AS400 Warehouse', title: 'Spool files backing up on output queue PRT01', component: 'Print services', area: 'Warehouse Dispatch', opened: '2026-09-25 18:10', status: 'New', owner: 'Unassigned', slaMin: 1400, slaTotal: 1440,
+    match: { id: 'INC0000977', score: 0.41, conf: 'Low', seen: 2 },
+    summary: 'Output queue PRT01 keeps growing; labels may print late.',
+    cause: 'No confident match. The writer may have ended or the printer is offline.',
+    evidence: ['Queue size rising', 'No writer messages in the sources'],
+    reasons: [['~', 'Only the queue name matches'], ['-', 'No shared error code'], ['-', 'Similarity 0.41']],
+    steps: [{ label: 'Check writer status with WRKWTR', risk: 'Low' }, { label: 'Escalate to AS400 on-call for diagnosis', risk: 'Low' }],
+    impact: 'Labels may print late', ci: 'PRT01 → dispatch printer', change: 'Unknown',
+    sparkLabel: 'Spool files on PRT01', spark: [10, 12, 15, 17, 20, 24, 27, 30, 34, 37, 41, 44],
+    timeline: [['18:10', 'Monitoring', 'Queue threshold alert'], ['18:11', 'Copilot', 'Low-confidence match only']],
+    related: [['Incident', 'INC0000977', 'Writer ended on PRT01']],
+    comms: 'P3 update: Dispatch labels may print late. We are checking the printer queue.',
+    qa: { rollback: 'No change has been made yet, so nothing to roll back.', impact: 'Warehouse Dispatch: labels may be delayed. No customer impact in the sources.' } }
+];
+var BY = {};
+INCIDENTS.forEach(function (i) { BY[i.id] = i; });
+var SEVC = { P1: '#FF8A4C', P2: '#FBBF24', P3: '#9FB0C8' };
+var RISKC = { Low: '#4ADE80', Medium: '#FBBF24', High: '#FF8A4C' };
+function pad(n) { return (n < 10 ? '0' : '') + n; }
+function clock() { var d = new Date(); return pad(d.getHours()) + ':' + pad(d.getMinutes()); }
+function initSteps(inc) { return inc.steps.map(function (s) { return s.risk === 'High' ? 'approval' : 'todo'; }); }
+
+class Component extends DCLogic {
+  constructor(props) {
+    super(props);
+    this.state = { sel: 'INC0003317', filter: 'all', tab: 'overview', steps: {}, ack: {}, resolved: {}, why: false, fb: {}, draft: {}, sent: {}, esc: {}, prb: {}, extra: {}, ask: '', qa: {}, toast: '', t0: Date.now(), now: Date.now() };
+  }
+  componentDidMount() { var self = this; this.timer = setInterval(function () { self.setState({ now: Date.now() }); }, 1000); }
+  componentWillUnmount() { clearInterval(this.timer); clearTimeout(this.tt); }
+  remaining(inc) { return Math.max(0, inc.slaMin * 60 - Math.floor((this.state.now - this.state.t0) / 1000)); }
+  fmt(sec) { if (sec >= 3600) { return Math.floor(sec / 3600) + 'h ' + pad(Math.floor((sec % 3600) / 60)) + 'm'; } return pad(Math.floor(sec / 60)) + ':' + pad(sec % 60); }
+  slaCol(sec, inc) { if (this.state.resolved[inc.id]) return '#4ADE80'; if (sec < 3600) return '#FF8A4C'; if (sec < 3 * 3600) return '#FBBF24'; return '#9FB0C8'; }
+  stepsOf(id) { return this.state.steps[id] || initSteps(BY[id]); }
+  setStep(id, i, v) { this.setState(function (st) { var cur = (st.steps[id] || initSteps(BY[id])).slice(); cur[i] = v; var o = Object.assign({}, st.steps); o[id] = cur; return { steps: o }; }); }
+  log(id, who, text) { var t = clock(); this.setState(function (st) { var o = Object.assign({}, st.extra); o[id] = (st.extra[id] || []).concat([[t, who, text]]); return { extra: o }; }); }
+  flag(key, id) { this.setState(function (st) { var o = Object.assign({}, st[key]); o[id] = true; var r = {}; r[key] = o; return r; }); }
+  toast(msg) { var self = this; this.setState({ toast: msg }); clearTimeout(this.tt); this.tt = setTimeout(function () { self.setState({ toast: '' }); }, 2600); }
+  run(id, i) { var self = this, label = BY[id].steps[i].label; this.setStep(id, i, 'running'); this.log(id, 'You', 'Started step ' + (i + 1) + ': ' + label); setTimeout(function () { self.setStep(id, i, 'done'); self.log(id, 'Copilot', 'Step ' + (i + 1) + ' completed'); self.toast('Step ' + (i + 1) + ' completed'); }, 1400); }
+  request(id, i) { var self = this; this.setStep(id, i, 'pending'); this.log(id, 'You', 'Requested approval for step ' + (i + 1)); setTimeout(function () { self.setStep(id, i, 'approved'); self.log(id, 'Change manager', 'Approved step ' + (i + 1)); self.toast('Step ' + (i + 1) + ' approved: ready to run'); }, 1800); }
+  answer(q, inc) {
+    var ql = q.toLowerCase();
+    if (/rollback|roll back|revert|undo/.test(ql)) return inc.qa.rollback;
+    if (/impact|business|user|who/.test(ql)) return inc.qa.impact;
+    if (/why|cause|root/.test(ql)) return inc.cause + ' Evidence: ' + inc.evidence.join('; ') + '.';
+    if (/similar|before|past|history/.test(ql)) return 'Closest match is ' + inc.match.id + ' at ' + inc.match.score.toFixed(2) + ', seen ' + inc.match.seen + ' times in the last 365 days.';
+    return 'I have no grounded answer to that in the approved sources for ' + inc.id + '. Try asking about the root cause, rollback or business impact.';
+  }
+  ask(text) { var q = (text || '').trim(); if (!q) return; var inc = BY[this.state.sel], a = this.answer(q, inc); this.setState(function (st) { var o = Object.assign({}, st.qa); o[inc.id] = (st.qa[inc.id] || []).concat([{ q: q, a: a }]); return { qa: o, ask: '' }; }); }
+
+  renderVals() {
+    var self = this, st = this.state, accent = this.props.accent || '#5B9BFF';
+    var inc = BY[st.sel];
+    var ranked = INCIDENTS.slice().sort(function (a, b) { return self.remaining(a) - self.remaining(b); });
+    var shown = ranked.filter(function (i) { if (st.filter === 'p1') return i.sev === 'P1'; if (st.filter === 'risk') return self.remaining(i) < 3 * 3600; return true; });
+    var list = shown.map(function (i) {
+      var rem = self.remaining(i), sel = i.id === st.sel, used = Math.min(100, Math.round(100 * (1 - rem / (i.slaTotal * 60))));
+      return { id: i.id, sev: i.sev, sys: i.sys, title: i.title, sevColor: SEVC[i.sev], slaText: st.resolved[i.id] ? 'Resolved' : self.fmt(rem), slaColor: self.slaCol(rem, i), slaPct: st.resolved[i.id] ? 100 : used,
+        hasRepeats: i.match.seen >= 10, seen: i.match.seen, bg: sel ? '#18264A' : '#111A2C', bd: sel ? accent : '#1E2A44', pick: function () { self.setState({ sel: i.id, tab: 'overview', why: false, ask: '' }); } };
+    });
+    var filters = [['all', 'All'], ['p1', 'P1 only'], ['risk', 'Breach < 3h']].map(function (f) {
+      var on = st.filter === f[0];
+      return { label: f[1], bg: on ? accent : 'transparent', fg: on ? '#0B1220' : '#C9D4E5', bd: on ? accent : '#2E4270', pick: function () { self.setState({ filter: f[0] }); } };
+    });
+    var rem = this.remaining(inc), slaColor = this.slaCol(rem, inc), used = Math.min(100, Math.round(100 * (1 - rem / (inc.slaTotal * 60))));
+    var resolved = !!st.resolved[inc.id], acked = !!st.ack[inc.id];
+    var tabs = [['overview', 'Overview'], ['timeline', 'Timeline'], ['related', 'Related'], ['comms', 'Comms']].map(function (t) {
+      var on = st.tab === t[0];
+      return { label: t[1], line: on ? accent : 'transparent', fg: on ? '#E6ECF5' : '#8FA0BA', weight: on ? 600 : 400, pick: function () { self.setState({ tab: t[0] }); } };
+    });
+    var all = inc.timeline.concat(st.extra[inc.id] || []);
+    var timeline = all.map(function (e) { return { t: e[0], who: e[1], text: e[2], dot: e[1] === 'Copilot' ? accent : (e[1] === 'You' ? '#4ADE80' : '#5A6C8F') }; }).reverse();
+    var related = inc.related.map(function (r) { return { kind: r[0], id: r[1], text: r[2] }; });
+    if (st.prb[inc.id]) related.unshift({ kind: 'Problem', id: 'PRB [draft]', text: 'Root-cause record for ' + inc.match.seen + ' linked incidents' });
+    var max = Math.max.apply(null, inc.spark), n = inc.spark.length;
+    var pts = inc.spark.map(function (v, k) { return (k * 560 / (n - 1)).toFixed(1) + ',' + (112 - (v / max) * 100).toFixed(1); });
+    var ss = this.stepsOf(inc.id), done = 0;
+    var steps = inc.steps.map(function (s, k) {
+      var v = ss[k]; if (v === 'done') done++;
+      var txt = { todo: 'Ready', running: 'Running…', done: 'Completed', approval: 'Needs approval', pending: 'Waiting for approver…', approved: 'Approved · ready' }[v];
+      return { label: s.label, risk: s.risk, riskColor: RISKC[s.risk], statusText: txt, mark: v === 'done' ? '✓' : String(k + 1),
+        numBg: v === 'done' ? '#4ADE80' : (v === 'running' ? accent : '#9FB0C8'), bd: v === 'running' ? accent : '#1E2A44',
+        canRun: !resolved && (v === 'todo' || v === 'approved'), canRequest: !resolved && v === 'approval',
+        run: function () { self.run(inc.id, k); }, request: function () { self.request(inc.id, k); } };
+    });
+    var confC = { High: ['#4ADE80', 'rgba(74,222,128,0.12)'], Medium: ['#FBBF24', 'rgba(251,191,36,0.12)'], Low: ['#F87171', 'rgba(248,113,113,0.14)'] }[inc.match.conf];
+    var reasons = inc.reasons.map(function (r) { return { mark: r[0] === '+' ? '✓' : (r[0] === '~' ? '≈' : '×'), color: r[0] === '+' ? '#4ADE80' : (r[0] === '~' ? '#FBBF24' : '#F87171'), text: r[1] }; });
+    var chips = ['Root cause?', 'Rollback plan', 'Business impact', 'Seen before?'].map(function (c) { return { label: c, pick: function () { self.ask(c); } }; });
+    var fb = st.fb[inc.id];
+    return {
+      accent: accent, inc: Object.assign({}, inc, { sevColor: SEVC[inc.sev], sevLabel: inc.sev + (inc.sev === 'P1' ? ' Critical' : inc.sev === 'P2' ? ' High' : ' Medium') }),
+      list: list, queueCount: list.length, filters: filters, tabs: tabs,
+      isOverview: st.tab === 'overview', isTimeline: st.tab === 'timeline', isRelated: st.tab === 'related', isComms: st.tab === 'comms',
+      statusText: resolved ? 'Resolved' : (acked ? 'In progress' : inc.status), ownerText: acked || resolved ? 'You' : inc.owner,
+      ackLabel: acked ? 'Acknowledged' : 'Acknowledge', ackDisabled: acked || resolved, resolveLabel: resolved ? 'Resolved' : 'Resolve', resolveDisabled: resolved,
+      onAck: function () { self.flag('ack', inc.id); self.log(inc.id, 'You', 'Acknowledged and took ownership'); self.toast('You now own ' + inc.id); },
+      onResolve: function () { self.flag('resolved', inc.id); self.log(inc.id, 'You', 'Resolved; copilot drafted closure notes for the KB'); self.toast('Resolved. Closure notes queued for KB review'); },
+      slaText: resolved ? 'Met' : this.fmt(rem), slaColor: slaColor, slaPct: resolved ? 100 : used, slaPctText: resolved ? '' : used + '% used', slaCaption: resolved ? 'SLA' : 'Time to breach',
+      slaBoxBg: slaColor === '#FF8A4C' ? 'rgba(255,138,76,0.08)' : '#111A2C',
+      sparkLine: pts.join(' '), sparkArea: '0,119 ' + pts.join(' ') + ' 560,119', sparkPeak: String(max),
+      recent: timeline.slice(0, 3), timeline: timeline, related: related,
+      hasDraft: !!st.draft[inc.id], noDraft: !st.draft[inc.id], sendLabel: st.sent[inc.id] ? 'Sent' : 'Send update', sentDisabled: !!st.sent[inc.id],
+      onDraft: function () { self.flag('draft', inc.id); self.setState({ tab: 'comms' }); self.log(inc.id, 'Copilot', 'Drafted a stakeholder update'); },
+      onSend: function () { self.flag('sent', inc.id); self.log(inc.id, 'You', 'Sent stakeholder update'); self.toast('Update sent to stakeholders'); },
+      confColor: confC[0], confBg: confC[1], scoreText: inc.match.score.toFixed(2), isLowConf: inc.match.conf === 'Low',
+      showWhy: st.why, whyLabel: st.why ? 'Hide why' : 'Why?', toggleWhy: function () { self.setState({ why: !st.why }); }, reasons: reasons,
+      steps: steps, doneCount: done, stepCount: steps.length, stepPct: Math.round(100 * done / steps.length),
+      escLabel: st.esc[inc.id] ? 'Escalated' : 'Escalate', escDisabled: !!st.esc[inc.id] || resolved,
+      onEscalate: function () { self.flag('esc', inc.id); self.log(inc.id, 'You', 'Escalated to next support level'); self.toast('Escalated. On-call paged'); },
+      prbLabel: st.prb[inc.id] ? 'Problem drafted' : 'Create problem', prbDisabled: !!st.prb[inc.id], prbColor: inc.match.seen >= 10 ? '#FBBF24' : '#3A4B6E',
+      onProblem: function () { self.flag('prb', inc.id); self.log(inc.id, 'Copilot', 'Drafted problem record from ' + inc.match.seen + ' linked incidents'); self.toast('Problem record drafted from ' + inc.match.seen + ' linked incidents'); },
+      kbId: 'KB [id]', upBg: fb === 'up' ? 'rgba(74,222,128,0.25)' : 'transparent', downBg: fb === 'down' ? 'rgba(248,113,113,0.25)' : 'transparent',
+      fbUp: function () { var o = Object.assign({}, st.fb); o[inc.id] = 'up'; self.setState({ fb: o }); self.toast('Thanks. Logged for evals'); },
+      fbDown: function () { var o = Object.assign({}, st.fb); o[inc.id] = 'down'; self.setState({ fb: o }); self.toast('Logged. This case goes to the eval review set'); },
+      qa: st.qa[inc.id] || [], chips: chips, askText: st.ask,
+      onAskChange: function (e) { self.setState({ ask: e.target.value }); },
+      onAskKey: function (e) { if (e.key === 'Enter') { self.ask(e.target.value); } },
+      onAsk: function () { self.ask(st.ask); },
+      hasToast: !!st.toast, toast: st.toast
+    };
+  }
+}
+</script>
+</body>
+</html>

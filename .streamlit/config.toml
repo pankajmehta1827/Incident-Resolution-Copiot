@@ -1,0 +1,27 @@
+# Theme from the "Incident Copilot — Interactive Prototype" design (Design artifact).
+[theme]
+base = "dark"
+primaryColor = "#5B9BFF"
+backgroundColor = "#0B1220"
+secondaryBackgroundColor = "#16213A"
+textColor = "#E6ECF5"
+borderColor = "#1E2A44"
+linkColor = "#8DB4FF"
+font = "'IBM Plex Sans':https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&display=swap"
+codeFont = "'JetBrains Mono':https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&display=swap"
+codeBackgroundColor = "#111A2C"
+baseFontSize = 14
+baseRadius = "10px"
+buttonRadius = "8px"
+headingFontWeights = [600, 600, 600, 600, 600, 600]
+dataframeBorderColor = "#1E2A44"
+dataframeHeaderBackgroundColor = "#111A2C"
+redColor = "#FF8A4C"
+orangeColor = "#FBBF24"
+greenColor = "#4ADE80"
+blueColor = "#5B9BFF"
+grayColor = "#9FB0C8"
+violetColor = "#C4A7FF"
+
+[server]
+headless = true
