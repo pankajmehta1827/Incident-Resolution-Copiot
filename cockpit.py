@@ -265,8 +265,8 @@ def ask(c: Ctx, question: str) -> None:
         reply = engine.ask(c.rec, question, history, c.model)
         answer = reply["answer"] + ("  \n:gray[" + " · ".join(c.rec.source(s).ref for s in reply["sources"]) + "]"
                                     if reply["sources"] else "")
-    except LLMUnavailable:
-        answer = "The copilot chat is unavailable right now."
+    except LLMUnavailable as exc:
+        answer = f"The copilot chat is unavailable right now: {exc.reason}."
     history += [{"role": "user", "content": question}, {"role": "assistant", "content": answer}]
 
 
@@ -436,12 +436,15 @@ def render_workspace(c: Ctx, compact: bool = False) -> None:
 def render_copilot(c: Ctx, compact: bool = False) -> None:
     """Status + why, summary, likely cause, steps with risk/approval, actions, sources + feedback, chat log."""
     number, incident, rec, state, best = c.number, c.incident, c.rec, c.state, c.best
-    conf = {"high": ("High", "green"), "low": ("Low", "red"), "none": ("No", "gray")}[rec.state]
+    conf = {"high": ("High confidence", "green"), "low": ("Low confidence", "red"),
+            "none": ("No confidence", "gray")}[rec.state]
+    if getattr(rec, "ai_failed", False):
+        conf = ("Strong match · AI steps unavailable", "orange")   # only the AI step generation failed
     whykey = f"why_{number}"
     with st.container(horizontal=True, vertical_alignment="center", gap="small"):
         st.markdown("**:blue[:material/auto_awesome:] Copilot**", width="content")
         st.space("stretch")
-        st.badge(f"{conf[0]} confidence · {rec.confidence:.2f}", color=conf[1])
+        st.badge(f"{conf[0]} · {rec.confidence:.2f}", color=conf[1])
         if rec.similar and rec.state != "none":
             st.toggle("Why?", key=whykey)
         if st.button("", icon=":material/refresh:", type="tertiary", help="Re-run the copilot", key=f"rerun_{number}"):
@@ -473,7 +476,7 @@ def render_copilot(c: Ctx, compact: bool = False) -> None:
         elif st.button("Escalate", icon=":material/north_east:", key="escalate_nomatch"):
             escalate_dialog(c)
     else:
-        if rec.state == "low":
+        if rec.state == "low" and not getattr(rec, "ai_failed", False):
             st.error("Low confidence: treat this as a lead, not an answer. Escalation is recommended.",
                      icon=":material/help:")
         st.caption("SUMMARY")

@@ -102,6 +102,7 @@ class Recommendation:
     conflicts: list[dict] = field(default_factory=list)
     escalation: str = ""
     error: str = ""
+    ai_failed: bool = False                       # a strong match whose steps could not be generated
     usage: dict = field(default_factory=dict)
     rerank: dict = field(default_factory=dict)   # what the re-ranker did (empty if it did not run)
     latency_s: float = 0.0
@@ -350,9 +351,10 @@ def analyze(incident: dict, user_id: str, index: KnowledgeIndex, model: str = co
         try:
             _generate(rec, model)
         except LLMUnavailable as exc:
-            rec.error = "AI recommendations are unavailable right now. Showing similar incidents only."
+            rec.error = f"AI recommendations are unavailable right now: {exc.reason}. Showing similar incidents only."
+            rec.ai_failed = True
             rec.state = "low"
-            audit.log("generation_failed", user_id, number, "AI service unavailable", details={"error": str(exc)[:200]})
+            audit.log("generation_failed", user_id, number, exc.reason, details={"error": str(exc)[:300]})
         if rec.state == "high" and not rec.steps:
             rec.state = "low"   # groundedness fallback: nothing survived the checks
 
