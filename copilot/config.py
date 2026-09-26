@@ -2,7 +2,12 @@
 from __future__ import annotations
 
 import os
-from datetime import date
+from datetime import date, timedelta, timezone
+
+# All times on screen are shown in Indian Standard Time. A fixed offset (IST has no daylight
+# saving) needs no tz database, so it is correct on Windows and on UTC cloud servers alike.
+# Workbook timestamps have no zone and are taken to be IST already.
+IST = timezone(timedelta(hours=5, minutes=30), "IST")
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent

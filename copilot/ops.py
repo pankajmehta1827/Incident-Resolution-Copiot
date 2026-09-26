@@ -10,7 +10,7 @@ from __future__ import annotations
 import re
 from collections import Counter
 from dataclasses import dataclass, field
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 
 from . import audit, config
 
@@ -20,6 +20,21 @@ STATE_ACTIONS = {"acknowledge": "Acknowledged", "escalate": "Escalated", "resolv
 
 
 _CLOCK_STARTED = datetime.now()
+
+
+def now_ist() -> datetime:
+    return datetime.now(config.IST)
+
+
+def fmt_ist(ts: str, fmt: str = "%Y-%m-%d %H:%M") -> str:
+    """Format an audit-log timestamp (ISO, stored in UTC) in IST."""
+    try:
+        dt = datetime.fromisoformat(ts)
+    except ValueError:
+        return ts
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return f"{dt.astimezone(config.IST).strftime(fmt)} IST"
 
 
 def clock_offset(all_incidents: list[dict]) -> timedelta:
@@ -267,7 +282,8 @@ def timeline(incident: dict, events: list[dict]) -> list[tuple[str, str, str]]:
     """(time, actor, text) rows: the ticket's own timestamps plus every logged copilot/engineer event."""
     rows = []
     if incident.get("opened"):
-        rows.append((incident["opened"], "ITSM", "Opened"))
+        rows.append((f"{incident['opened']} IST", "ITSM" if incident.get("source") != "Agent search" else "You",
+                     "Opened" if incident.get("source") != "Agent search" else "Asked the agent"))
     seen_copilot: set[str] = set()
     for e in events:
         text = event_label(e)
@@ -279,7 +295,7 @@ def timeline(incident: dict, events: list[dict]) -> list[tuple[str, str, str]]:
         if text:
             actor = "Copilot" if e["action"] in ("match", "recommendation", "no_match", "suspicious_input") \
                 else config.USERS.get(e["user"], {}).get("name", e["user"])
-            rows.append((e["ts"].replace("T", " ")[:16] + " UTC", actor, text))
+            rows.append((fmt_ist(e["ts"]), actor, text))
     if incident.get("status") in ("Escalated",) and not any(e["action"] == "escalate" for e in events):
         rows.insert(1, ("time not recorded", "ITSM", "Escalated in the ITSM tool"))
     return rows

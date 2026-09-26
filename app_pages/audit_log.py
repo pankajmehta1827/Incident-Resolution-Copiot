@@ -6,7 +6,7 @@ import json
 import pandas as pd
 import streamlit as st
 
-from copilot import audit, insights
+from copilot import audit, insights, ops
 
 # Technical fields (which AI model ran, token counts, raw provider errors) stay in the
 # log file for engineering but are not shown on screen.
@@ -48,6 +48,7 @@ actions = sorted(df["action"].unique())
 chosen = st.pills("Actions", actions, selection_mode="multi", default=actions)
 view = df[df["action"].isin(chosen)].sort_values("seq", ascending=False).copy()
 view["sources"] = view["sources"].apply(lambda s: ", ".join(s))
+view["ts"] = view["ts"].apply(ops.fmt_ist)
 view["details"] = view["details"].apply(lambda d: json.dumps(_public(d), ensure_ascii=False) if d else "")
 st.dataframe(
     view[["seq", "ts", "user", "incident", "action", "outcome", "sources", "details", "hash"]],

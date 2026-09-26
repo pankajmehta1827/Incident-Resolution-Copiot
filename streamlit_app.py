@@ -1,14 +1,12 @@
 """Incident Resolution Copilot: entry point, global bar and page router."""
 from __future__ import annotations
 
-from datetime import datetime
-
 import streamlit as st
 from dotenv import load_dotenv
 
 load_dotenv()
 
-from copilot import audit, config, engine  # noqa: E402  (after load_dotenv so env overrides apply)
+from copilot import audit, config, engine, ops  # noqa: E402  (after load_dotenv so env overrides apply)
 import ui_cards  # noqa: E402
 from ui_common import data_signature, get_kb, get_models  # noqa: E402
 
@@ -28,7 +26,6 @@ st.session_state.setdefault("updates", {})      # (incident, user) -> drafted st
 # Baseline for auto-refresh: what the data looked like when this run started.
 st.session_state.data_sig = data_signature()
 
-
 @st.fragment(run_every=config.AUTO_REFRESH_SECONDS)
 def auto_refresh() -> None:
     """Checks for changes every few seconds and refreshes the whole screen only when something
@@ -38,7 +35,7 @@ def auto_refresh() -> None:
     if sig != st.session_state.get("data_sig"):
         st.session_state.data_sig = sig
         st.rerun(scope="app")
-    st.caption(f":green[:material/sync:] {datetime.now():%H:%M:%S}", width="content",
+    st.caption(f":green[:material/sync:] {ops.now_ist():%H:%M:%S} IST", width="content",
                help=f"Auto-refreshes within {config.AUTO_REFRESH_SECONDS} s when incidents, runbooks or "
                     "the activity log change")
 
@@ -69,7 +66,6 @@ st.html("""<style>
 # Live SLA timers: a static script (no user data) that ticks every [data-sla-rem] element each second.
 st.html(ui_cards.SCRIPT, unsafe_allow_javascript=True)
 
-
 def _ask_agent() -> None:
     text = st.session_state.get("search", "").strip()
     if not text:
@@ -77,7 +73,8 @@ def _ask_agent() -> None:
     user = config.USERS[st.session_state.user_id]
     index = get_kb().index
     app = engine.detect_system(index, text, user["groups"])
-    ask = {"number": f"ASK-{datetime.now():%H%M%S}", "opened": f"{datetime.now():%Y-%m-%d %H:%M}",
+    asked = ops.now_ist()
+    ask = {"number": f"ASK-{asked:%H%M%S}", "opened": f"{asked:%Y-%m-%d %H:%M}",
            "application": app, "category": "", "error_code": engine.find_error_code(index, text),
            "priority": "Search", "status": "Question", "short_description": text[:120], "description": text,
            "source": "Agent search", "system_detected": True}
@@ -86,7 +83,6 @@ def _ask_agent() -> None:
     st.session_state.search = ""
     st.session_state.goto_cockpit = True
     audit.log("agent_search", st.session_state.user_id, ask["number"], f"system: {app} (detected)")
-
 
 short = {config.MF: "MF", config.AS400: "AS400", config.JAVA: "Java"}
 with st.container(key="globalbar", horizontal=True, vertical_alignment="center", gap="small"):

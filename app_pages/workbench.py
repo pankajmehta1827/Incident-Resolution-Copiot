@@ -116,7 +116,7 @@ with queue_col, st.container(key="queuepane", height=720, border=False):
                 st.button(f"Open {inc['number']}", key=f"q_{inc['number']}", on_click=_select, args=(inc["number"],))
         if not numbers:
             st.info("No incidents match the search or filters.")
-    st.caption(f"SLA clock started at the workbook export ({now:%d %b %H:%M}) and runs live · J / K to move")
+    st.caption(f"SLA clock started at the workbook export ({now:%d %b %H:%M} IST) and runs live · J / K to move")
 
 number = st.session_state.selected_incident
 if not number:
@@ -217,6 +217,14 @@ def _draft_update(audience: str = "Business") -> None:
     st.session_state.open_comms = number        # switch tabs on the next run, before the tabs render
 
 
+def _remove_ask(ask_number: str) -> None:
+    st.session_state.custom_incidents = [i for i in st.session_state.custom_incidents
+                                         if i["number"] != ask_number]
+    audit.log("agent_search_removed", user_id, ask_number, "removed from queue by engineer")
+    st.session_state.flash = "Question removed from the queue"
+    st.session_state.selected_incident = None
+
+
 def _create_problem() -> None:
     pid = ops.new_problem_id(audit.entries())
     audit.log("problem_created", user_id, number, pid, details={
@@ -250,7 +258,10 @@ with main_col:
                 st.badge(state.status or "–", color="gray")
                 st.badge(f"Owner · {state.owner or 'Unassigned'}", color="gray")
             st.space("stretch")
-            if not is_ask:
+            if is_ask:
+                st.button("Remove from queue", icon=":material/close:", on_click=_remove_ask, args=(number,),
+                          help="Remove this agent search from the queue (it is not a ticket)")
+            else:
                 if st.button("Acknowledged" if state.acknowledged else "Acknowledge",
                              disabled=state.acknowledged or state.status == "Resolved"):
                     audit.log("acknowledge", user_id, number, "acknowledged; took ownership")
@@ -262,7 +273,8 @@ with main_col:
             with st.container():
                 st.markdown(f"#### {incident['short_description']}")
                 sub = [SHORT.get(incident["application"], incident["application"]), incident.get("component"),
-                       incident.get("business_area"), f"opened {incident.get('opened')}" if incident.get("opened") else None]
+                       incident.get("business_area"),
+                       f"{'asked' if is_ask else 'opened'} {incident.get('opened')} IST" if incident.get("opened") else None]
                 st.caption(" · ".join(x for x in sub if x))
             if not is_ask and sla.remaining is not None:
                 # Live timer: counts down to breach, then counts up the time over SLA.
@@ -311,14 +323,14 @@ with main_col:
             with st.container(border=True):
                 st.markdown("**Latest activity**")
                 for t, who, txt in list(reversed(rows))[:3]:
-                    st.markdown(f"{dot(who)} `{t[11:16] if len(t) > 11 else t}` {txt}")
+                    st.markdown(f"{dot(who)} `{t[11:] if t[:4].isdigit() else t}` {txt}")
 
         with timeline_tab:
             for t, who, txt in reversed(rows):
                 st.markdown(f"{dot(who)} :gray[`{t}` · {who}]  \n{txt}")
             for n in audit.work_notes(number):
                 with st.container(border=True):
-                    st.caption(f"Closure notes · {n['ts'][:16].replace('T', ' ')} UTC · {n['user']}")
+                    st.caption(f"Closure notes · {ops.fmt_ist(n['ts'])} · {n['user']}")
                     st.markdown(f"**Symptom:** {n['note']['symptom']}  \n**Root cause:** {n['note']['root_cause']}")
                     st.markdown("\n".join(f"{i}. {s}" for i, s in enumerate(n["note"]["steps_taken"], 1)))
                     st.markdown(f"**Verification:** {n['note']['verification']}")
@@ -385,7 +397,7 @@ with main_col:
                         st.rerun()
             for e in reversed([e for e in state.events if e["action"] == "update_sent"]):
                 with st.container(border=True):
-                    st.caption(f"Sent · {e['ts'][:16].replace('T', ' ')} UTC · {e['details'].get('audience')}")
+                    st.caption(f"Sent · {ops.fmt_ist(e['ts'])} · {e['details'].get('audience')}")
                     st.markdown(f"**{e['details'].get('subject')}**  \n{e['details'].get('body')}")
 
     # === Copilot panel =================================================================
@@ -419,7 +431,12 @@ with main_col:
             st.info("**No known fix found.** Nothing in the history or runbooks matches closely enough.",
                     icon=":material/search_off:")
             st.markdown(f"**Escalation path:** {rec.escalation}")
-            if not is_ask and st.button("Escalate", icon=":material/north_east:"):
+            if is_ask:
+                # An off-topic or unknown question has nothing to work on: offer to clear it.
+                st.caption("This question doesn't match any known issue for your systems.")
+                st.button("Remove this question from the queue", icon=":material/close:", type="primary",
+                          key="remove_ask_nomatch", on_click=_remove_ask, args=(number,))
+            elif st.button("Escalate", icon=":material/north_east:"):
                 escalate_dialog()
         else:
             if rec.state == "low":
