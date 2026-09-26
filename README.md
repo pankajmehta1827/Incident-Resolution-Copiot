@@ -48,6 +48,25 @@ The pipeline lives in [copilot/engine.py](copilot/engine.py) and follows the PRD
   passed as data inside `<incident_data>` tags, and each attempt is logged as `suspicious_input`.
 
 
+**Mobile layout**
+
+When a support engineer opens the app on a phone, it switches to a mobile layout automatically. The
+phone is detected from the browser's User-Agent. `?view=mobile` or `?view=desktop` in the URL
+forces a layout, and the menu has a *Switch to … layout* button.
+
+- **Queue:** full-width cards with live SLA timers, P1 count and filter chips. Tap a card to open
+  the incident.
+- **Incident:** a *Queue* back button, the header, a full-width SLA timer, and *Acknowledge* /
+  *Resolve*. The copilot comes first (cause, steps with *Run* / *Request approval*, *Draft update*,
+  *Escalate*, *Create problem*, feedback), then quick questions and chat, then Overview / Timeline /
+  Related / Comms.
+- **Top bar:** brand, sync time and a menu (pages, role, layout switch), plus search and *Ask the
+  agent*.
+
+The mobile layout uses the same URL, data, actions and guardrails as the desktop, because both
+layouts are built from `cockpit.py` (`app_pages/workbench.py` for desktop, `app_pages/mobile.py`
+for mobile). It works in any phone browser, with nothing to install.
+
 **Cockpit notes**
 
 - **Visual design.** The look follows the Design artifact *Incident Copilot - Interactive Prototype*
