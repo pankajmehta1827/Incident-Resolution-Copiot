@@ -1,6 +1,6 @@
 # Incident Resolution Copilot
 
-A working prototype of the AI PRD in [`PRD/`](PRD/). When a support engineer opens an incident, the
+A working prototype of the Incident Resolution Copilot AI PRD. When a support engineer opens an incident, the
 copilot checks whether it is a repeat of a known problem. It retrieves the relevant AID sections,
 Confluence runbooks and similar resolved incidents, then shows a step-by-step fix with a citation
 on every step. The engineer reviews it and decides. The copilot is read-only and never executes anything.
