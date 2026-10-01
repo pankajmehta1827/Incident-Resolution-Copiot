@@ -28,8 +28,12 @@ def enabled() -> bool:
 
 
 def _client() -> httpx.Client:
-    if not (config.SERVICENOW_URL and config.SERVICENOW_USER and config.SERVICENOW_PASSWORD):
-        raise ServiceNowError("SERVICENOW_URL, SERVICENOW_USER and SERVICENOW_PASSWORD must be set")
+    settings = {"SERVICENOW_URL": config.SERVICENOW_URL, "SERVICENOW_USER": config.SERVICENOW_USER,
+                "SERVICENOW_PASSWORD": config.SERVICENOW_PASSWORD}
+    missing = [name for name, value in settings.items() if not value.strip()]
+    if missing:   # name the exact variables, so a deployment can be fixed without guessing
+        raise ServiceNowError(f"These settings are empty or missing: {', '.join(missing)}. "
+                              f"Set them as plain values (not references) and redeploy.")
     return httpx.Client(base_url=config.SERVICENOW_URL.rstrip("/"), timeout=30,
                         auth=(config.SERVICENOW_USER, config.SERVICENOW_PASSWORD),
                         headers={"Accept": "application/json", "Content-Type": "application/json"})
