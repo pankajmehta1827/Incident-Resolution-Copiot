@@ -1,3 +1,6 @@
-# Extra packages for the local ServiceNow mock (the copilot itself does not need them).
+# Packages for the ServiceNow mock (the copilot itself does not need fastapi/uvicorn).
 fastapi>=0.110
 uvicorn>=0.27
+python-multipart>=0.0.9   # the incident form (add work note / change state)
+pandas>=2.2       # seeding from the incident workbook
+openpyxl>=3.1

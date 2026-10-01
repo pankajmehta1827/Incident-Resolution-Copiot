@@ -1,8 +1,10 @@
 """Cached resources and small helpers shared by the Streamlit pages."""
 from __future__ import annotations
 
+import time
 from dataclasses import dataclass
 
+import httpx
 import streamlit as st
 
 from copilot import audit, config, knowledge, llm, servicenow
@@ -51,8 +53,18 @@ def _load_kb(version: tuple) -> KnowledgeBase:
 
 
 def get_kb() -> KnowledgeBase:
-    """The indexed knowledge base, rebuilt automatically when the workbook or documents change."""
-    return _load_kb(sources_version())
+    """The indexed knowledge base, rebuilt automatically when the workbook or documents change.
+    If ServiceNow is the source and can't be reached (e.g. still starting), say so and retry shortly
+    instead of crashing; failures are not cached, so the next run tries again."""
+    try:
+        return _load_kb(sources_version())
+    except (servicenow.ServiceNowError, httpx.HTTPError) as exc:
+        st.error(f"Can't load incidents from ServiceNow ({config.SERVICENOW_URL}). Retrying automatically. "
+                 f"Check that it is running and that SERVICENOW_USER / SERVICENOW_PASSWORD are correct.",
+                 icon=":material/sync_problem:")
+        st.caption(f"Details: {type(exc).__name__}: {str(exc)[:200]}")
+        time.sleep(10)
+        st.rerun()
 
 
 @st.cache_data(ttl=3600, show_spinner=False)

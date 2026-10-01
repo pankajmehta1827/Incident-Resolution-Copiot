@@ -30,9 +30,11 @@ HERE = Path(__file__).resolve().parent
 DB_PATH = Path(os.getenv("MOCK_SN_DB", HERE / "data" / "incident.db"))
 SEED_WORKBOOK = Path(os.getenv("MOCK_SN_WORKBOOK",
                                HERE.parent / "data" / "Incident" / "5000_Enterprise_Incidents_Master.xlsx"))
-# Local mock only. Change these (or set them in the environment) if the mock is ever reachable by others.
+# Local mock defaults. Deployed (MOCK_SN_UI_AUTH=1, set in the Dockerfile) the browser UI also needs
+# these credentials, and the server refuses to start while the password is still the default.
 API_USER = os.getenv("MOCK_SN_USER", "admin")
 API_PASSWORD = os.getenv("MOCK_SN_PASSWORD", "admin")
+UI_AUTH = os.getenv("MOCK_SN_UI_AUTH", "0") == "1"
 
 PRIORITY = {1: "1 - Critical", 2: "2 - High", 3: "3 - Moderate", 4: "4 - Low", 5: "5 - Planning"}
 STATE = {1: "New", 2: "In Progress", 3: "On Hold", 6: "Resolved", 7: "Closed", 8: "Canceled"}
@@ -230,23 +232,38 @@ def _apply(con, sys_id: str, body: dict, user: str) -> None:
 
 app = FastAPI(title="ServiceNow mock", docs_url="/api/docs", openapi_url="/api/openapi.json")
 security = HTTPBasic(auto_error=True)
+optional_security = HTTPBasic(auto_error=False)
 
 
 @app.on_event("startup")
 def _startup() -> None:
+    if UI_AUTH and API_PASSWORD == "admin":
+        raise RuntimeError("Set MOCK_SN_PASSWORD (and MOCK_SN_USER) before deploying the mock: "
+                           "the default password 'admin' is only allowed for local use.")
     init_db()
 
 
-def api_user(creds: HTTPBasicCredentials = Depends(security)) -> str:
-    ok = secrets.compare_digest(creds.username, API_USER) and secrets.compare_digest(creds.password, API_PASSWORD)
+@app.get("/health", include_in_schema=False)
+def health() -> dict:
+    return {"status": "ok"}
+
+
+def _check(creds: HTTPBasicCredentials | None) -> str:
+    ok = creds is not None and secrets.compare_digest(creds.username, API_USER) \
+        and secrets.compare_digest(creds.password, API_PASSWORD)
     if not ok:
         raise HTTPException(401, "User Not Authenticated", headers={"WWW-Authenticate": "Basic"})
     return creds.username
 
 
-def ui_user() -> str:
-    """The browser UI is open for local use (like being signed in); the API always needs basic auth."""
-    return "ui.user"
+def api_user(creds: HTTPBasicCredentials = Depends(security)) -> str:
+    return _check(creds)
+
+
+def ui_user(creds: HTTPBasicCredentials | None = Depends(optional_security)) -> str:
+    """Locally the browser UI is open (like being signed in). Deployed (MOCK_SN_UI_AUTH=1) it asks for
+    the same credentials as the API. The API always needs basic auth."""
+    return _check(creds) if UI_AUTH else "ui.user"
 
 
 @app.get("/api/now/table/incident")
