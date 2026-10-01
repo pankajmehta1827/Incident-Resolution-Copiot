@@ -244,7 +244,8 @@ def _startup() -> None:
 
 
 @app.get("/health", include_in_schema=False)
-def health() -> dict:
+@app.get("/_stcore/health", include_in_schema=False)   # Railway applies the repo's railway.json health check
+def health() -> dict:                                  # (the copilot's path) to every service from this repo
     return {"status": "ok"}
 
 
