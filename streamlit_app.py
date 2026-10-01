@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 
 from copilot import audit, config, engine, ops  # noqa: E402  (after load_dotenv so env overrides apply)
+import ui_auth  # noqa: E402
 import ui_cards  # noqa: E402
 from ui_common import data_signature, get_kb, get_models  # noqa: E402
 
@@ -96,6 +97,9 @@ if is_mobile:
 # Live SLA timers: a static script (no user data) that ticks every [data-sla-deadline] element each second.
 st.html(ui_cards.SCRIPT, unsafe_allow_javascript=True)
 
+# Nothing below this line is shown until the person signs in (unless COPILOT_AUTH=off).
+ui_auth.require_sign_in()
+
 
 def _ask_agent() -> None:
     text = st.session_state.get("search", "").strip()
@@ -124,14 +128,27 @@ status = ":green[●]" if models else ":orange[●]"
 source = "ServiceNow" if config.INCIDENT_SOURCE == "servicenow" else "workbook"
 
 
+def _identity() -> None:
+    """Who is using the app. Signed in: their name and a sign-out button. Sign-in off (local
+    development only): the old picker for trying out the different roles."""
+    if ui_auth.signed_in_user():
+        st.caption(f":material/person: {user['name']} · {user['role']}", width="content")
+        st.button("Sign out", icon=":material/logout:", type="tertiary", on_click=ui_auth.sign_out,
+                  key=f"sign_out_{'m' if is_mobile else 'd'}")
+    else:
+        st.selectbox("Signed in as", options=list(config.USERS), key="user_id",
+                     label_visibility="visible" if is_mobile else "collapsed", width="stretch" if is_mobile else 170,
+                     format_func=lambda u: f"{config.USERS[u]['name']} · {config.USERS[u]['role']}" if is_mobile
+                     else config.USERS[u]["name"])
+
+
 def _menu() -> None:
     """Pages, role and layout switch. On mobile this holds everything that doesn't fit the bar."""
     for p in menu_pages:
         st.page_link(p, label=p.title, icon=p.icon)
     if is_mobile:
         st.divider()
-        st.selectbox("Signed in as", options=list(config.USERS), key="user_id",
-                     format_func=lambda u: f"{config.USERS[u]['name']} · {config.USERS[u]['role']}")
+        _identity()
         st.caption(f"{status} Incidents from {source} · {len(kb.documents)} runbooks · "
                    f"{sum(h.occurrences for h in kb.index.history):,} resolved indexed · "
                    f"{' · '.join(short.get(g, g) for g in user['groups'])}")
@@ -171,8 +188,7 @@ else:
                         f"{config.FRESHNESS_WINDOW_DAYS} days.")
         st.caption(" · ".join(short.get(g, g) for g in user["groups"]), width="content")
         auto_refresh()
-        st.selectbox("Signed in as", options=list(config.USERS), key="user_id", label_visibility="collapsed",
-                     format_func=lambda u: config.USERS[u]["name"], width=170)
+        _identity()
 
 if not models:
     st.warning("AI recommendations are unavailable. The copilot shows similar incidents only.",

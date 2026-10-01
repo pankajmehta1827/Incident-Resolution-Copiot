@@ -19,6 +19,29 @@ copy .env.example .env          # then set GROQ_API_KEY
 If no key is set, or Groq is unreachable, the app still works. It shows similar incidents only (the
 PRD's low-confidence view) and uses a notes template instead of a generated draft.
 
+## Sign-in
+
+The app shows a sign-in screen until the person signs in. The accounts are the users in
+`copilot/config.py`. Each signs in with a password set in an environment variable (a Railway
+variable, or `.env` locally):
+
+| User | Variable |
+|---|---|
+| `team.lead` | `COPILOT_PASSWORD_TEAM_LEAD` |
+| `rajesh.kumar` | `COPILOT_PASSWORD_RAJESH_KUMAR` |
+| `sarah.jenkins` | `COPILOT_PASSWORD_SARAH_JENKINS` |
+| `knowledge.mgr` | `COPILOT_PASSWORD_KNOWLEDGE_MGR` |
+
+- **Who can sign in:** a user without a password variable can't sign in. If none are set, the app
+  stays locked.
+- **What sign-in changes:** the signed-in person's identity replaces the "Signed in as" picker, and
+  their name and permissions apply to queues, audit entries and ServiceNow work notes.
+- **Lockout:** five wrong passwords in a row lock that browser session for a minute.
+- **Audit:** sign-ins, failures and sign-outs are logged. Passwords never are.
+- **Local development:** `COPILOT_AUTH=off` turns sign-in off.
+- **Production:** this is prototype-grade. Use single sign-on instead (Streamlit's `st.login`
+  with Microsoft Entra ID or Google), so no passwords live in the app's settings.
+
 ## ServiceNow (mock or real)
 
 `servicenow_mock/` is a local stand-in for a ServiceNow instance while a real developer instance
