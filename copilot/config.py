@@ -15,7 +15,9 @@ DATA_DIR = ROOT / "data"
 KNOWLEDGE_DIR = DATA_DIR / "knowledge"
 INCIDENT_WORKBOOK = Path(os.getenv("INCIDENT_WORKBOOK", DATA_DIR / "Incident" / "5000_Enterprise_Incidents_Master.xlsx"))
 INCIDENT_SHEET = "Incident Records"
-RUNTIME_DIR = DATA_DIR / "runtime"
+# Audit log and work notes. On Railway, mount a volume here (or set COPILOT_RUNTIME_DIR to the
+# volume's path) so they survive redeploys and restarts.
+RUNTIME_DIR = Path(os.getenv("COPILOT_RUNTIME_DIR", DATA_DIR / "runtime"))
 AUDIT_LOG_FILE = RUNTIME_DIR / "audit_log.jsonl"
 WORK_NOTES_FILE = RUNTIME_DIR / "work_notes.jsonl"
 

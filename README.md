@@ -19,6 +19,26 @@ copy .env.example .env          # then set GROQ_API_KEY
 If no key is set, or Groq is unreachable, the app still works. It shows similar incidents only (the
 PRD's low-confidence view) and uses a notes template instead of a generated draft.
 
+## Deploy on Railway
+
+The repo includes a `Dockerfile` (Python 3.12) and a `railway.json` (start command and a health
+check on `/_stcore/health`), so Railway builds and runs it with no extra setup.
+
+1. In Railway, choose **New Project → Deploy from GitHub repo** and pick this repository.
+2. Under **Variables**, add `GROQ_API_KEY` (and optionally `GROQ_MODEL`, `GROQ_FALLBACK_MODEL`,
+   `COPILOT_RERANK`).
+3. Under **Volumes**, add a volume mounted at `/data`, then add the variable
+   `COPILOT_RUNTIME_DIR=/data`. This keeps the audit log and work notes through redeploys and
+   restarts. Without it they reset on every deploy.
+4. Under **Settings → Networking**, click **Generate Domain** to get a public `*.up.railway.app` URL.
+
+Every push to `main` redeploys automatically. The same image runs anywhere Docker runs:
+
+```bash
+docker build -t incident-copilot .
+docker run -p 8501:8501 --env-file .env incident-copilot
+```
+
 ## Pages
 
 | Page | PRD coverage |
