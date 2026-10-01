@@ -1,4 +1,5 @@
 # Incident Resolution Copilot: container image for Railway (or any Docker host).
+# The same image also runs the ServiceNow mock when APP_ROLE=servicenow-mock (see start.sh).
 FROM python:3.12-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -9,11 +10,13 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY requirements.txt .
-RUN pip install -r requirements.txt
+COPY servicenow_mock/requirements.txt servicenow_mock/requirements.txt
+RUN pip install -r requirements.txt -r servicenow_mock/requirements.txt
 
 COPY . .
+# Guard against Windows line endings breaking the shell script.
+RUN sed -i 's/\r$//' start.sh && chmod +x start.sh
 
-# Railway sets $PORT; default to 8501 when run elsewhere.
-EXPOSE 8501
-# exec makes streamlit the main process, so Railway's stop signal shuts it down cleanly.
-CMD ["sh", "-c", "exec streamlit run streamlit_app.py --server.port ${PORT:-8501} --server.address 0.0.0.0"]
+# Railway sets $PORT; defaults are 8501 (copilot) and 8600 (mock) when run elsewhere.
+EXPOSE 8501 8600
+CMD ["./start.sh"]

@@ -78,6 +78,17 @@ check on `/_stcore/health`), so Railway builds and runs it with no extra setup.
    restarts. Without it they reset on every deploy.
 4. Under **Settings → Networking**, click **Generate Domain** to get a public `*.up.railway.app` URL.
 
+**ServiceNow mock as a second service.** The same image runs the mock when the service has the
+variable `APP_ROLE=servicenow-mock` (see `start.sh`), so no separate Dockerfile setting is needed.
+
+- **Mock service** (create it from the same repo): set `APP_ROLE=servicenow-mock`,
+  `MOCK_SN_USER`, `MOCK_SN_PASSWORD` (not `admin`; the mock refuses to start with it) and
+  `PORT=8600`. Add a volume at `/data`, and generate a public domain on port 8600. Its screens
+  and API then ask for that username and password.
+- **Copilot service:** set `INCIDENT_SOURCE=servicenow`,
+  `SERVICENOW_URL=https://<mock-domain>.up.railway.app` (no port), and the same
+  `SERVICENOW_USER` and `SERVICENOW_PASSWORD`.
+
 Every push to `main` redeploys automatically. The same image runs anywhere Docker runs:
 
 ```bash

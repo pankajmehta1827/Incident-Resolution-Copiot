@@ -17,5 +17,5 @@ COPY servicenow_mock/ servicenow_mock/
 COPY data/Incident/ data/Incident/
 
 EXPOSE 8600
-# "::" listens on IPv6 and IPv4, so Railway's private network (*.railway.internal) can reach it.
-CMD ["sh", "-c", "exec uvicorn servicenow_mock.server:app --host :: --port ${PORT:-8600}"]
+# 0.0.0.0: reachable through Railway's public domain and its private network (IPv4).
+CMD ["sh", "-c", "exec uvicorn servicenow_mock.server:app --host 0.0.0.0 --port ${PORT:-8600}"]
