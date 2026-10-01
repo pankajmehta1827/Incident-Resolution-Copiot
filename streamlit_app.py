@@ -121,6 +121,7 @@ short = {config.MF: "MF", config.AS400: "AS400", config.JAVA: "Java"}
 kb = get_kb()
 user = config.USERS[st.session_state.user_id]
 status = ":green[●]" if models else ":orange[●]"
+source = "ServiceNow" if config.INCIDENT_SOURCE == "servicenow" else "workbook"
 
 
 def _menu() -> None:
@@ -131,8 +132,9 @@ def _menu() -> None:
         st.divider()
         st.selectbox("Signed in as", options=list(config.USERS), key="user_id",
                      format_func=lambda u: f"{config.USERS[u]['name']} · {config.USERS[u]['role']}")
-        st.caption(f"{status} {len(kb.documents)} runbooks · {sum(h.occurrences for h in kb.index.history):,} "
-                   f"incidents indexed · {' · '.join(short.get(g, g) for g in user['groups'])}")
+        st.caption(f"{status} Incidents from {source} · {len(kb.documents)} runbooks · "
+                   f"{sum(h.occurrences for h in kb.index.history):,} resolved indexed · "
+                   f"{' · '.join(short.get(g, g) for g in user['groups'])}")
     st.divider()
     other = "desktop" if is_mobile else "mobile"
     st.button(f"Switch to {other} layout", icon=":material/desktop_windows:" if is_mobile else ":material/smartphone:",
@@ -162,9 +164,11 @@ else:
         with st.popover("", icon=":material/apps:", help="Pages", type="tertiary"):
             _menu()
         st.space("stretch")
-        st.caption(f"{status} {len(kb.documents)} runbooks · "
-                   f"{sum(h.occurrences for h in kb.index.history):,} incidents indexed", width="content",
-                   help=f"Freshness window {config.FRESHNESS_WINDOW_DAYS} days")
+        st.caption(f"{status} {source} · {len(kb.documents)} runbooks · "
+                   f"{sum(h.occurrences for h in kb.index.history):,} incidents", width="content",
+                   help=f"Incidents from {source}; {sum(h.occurrences for h in kb.index.history):,} resolved "
+                        f"incidents and {len(kb.documents)} runbooks indexed. Freshness window "
+                        f"{config.FRESHNESS_WINDOW_DAYS} days.")
         st.caption(" · ".join(short.get(g, g) for g in user["groups"]), width="content")
         auto_refresh()
         st.selectbox("Signed in as", options=list(config.USERS), key="user_id", label_visibility="collapsed",

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import streamlit as st
 
-from copilot import audit, config, knowledge, llm
+from copilot import audit, config, knowledge, llm, servicenow
 from copilot.retrieval import KnowledgeIndex
 
 
@@ -30,8 +30,11 @@ def _stamp(paths) -> tuple:
 
 
 def sources_version() -> tuple:
-    """Changes whenever the incident workbook or any knowledge document changes."""
+    """Changes whenever the incidents (workbook file, or the newest ServiceNow update) or any
+    knowledge document changes."""
     docs = sorted(p for p in config.KNOWLEDGE_DIR.rglob("*") if p.suffix.lower() in (".docx", ".md"))
+    if servicenow.enabled():
+        return (("servicenow", servicenow.latest_update()),) + _stamp(docs)
     return _stamp([config.INCIDENT_WORKBOOK, *docs])
 
 

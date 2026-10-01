@@ -266,9 +266,15 @@ def load_documents(knowledge_dir: Path = config.KNOWLEDGE_DIR) -> tuple[list[Doc
 # --- Incidents -------------------------------------------------------------------
 
 def _read_workbook(path: Path = config.INCIDENT_WORKBOOK):
+    """Incidents as a DataFrame with the workbook's columns, from the workbook or from ServiceNow."""
     import pandas as pd
 
-    df = pd.read_excel(path, sheet_name=config.INCIDENT_SHEET, dtype=str).fillna("")
+    from . import servicenow
+
+    if servicenow.enabled():
+        df = pd.DataFrame(servicenow.to_workbook_rows(servicenow.fetch_incidents()), dtype=str).fillna("")
+    else:
+        df = pd.read_excel(path, sheet_name=config.INCIDENT_SHEET, dtype=str).fillna("")
     df.columns = [c.strip() for c in df.columns]
     for col in ("Created Timestamp", "Resolved Timestamp"):
         df[col] = pd.to_datetime(df[col], errors="coerce")
@@ -289,7 +295,7 @@ def _incident_dict(r) -> dict:
         "assigned_to": r.get("Assigned To", ""),   # shown as owner; never indexed or used for matching
         "short_description": r["Description"],
         "description": r["Description"],
-        "source": "Incident workbook",
+        "source": "ServiceNow" if config.INCIDENT_SOURCE == "servicenow" else "Incident workbook",
     }
 
 

@@ -15,6 +15,13 @@ DATA_DIR = ROOT / "data"
 KNOWLEDGE_DIR = DATA_DIR / "knowledge"
 INCIDENT_WORKBOOK = Path(os.getenv("INCIDENT_WORKBOOK", DATA_DIR / "Incident" / "5000_Enterprise_Incidents_Master.xlsx"))
 INCIDENT_SHEET = "Incident Records"
+
+# Where incidents come from: "workbook" (the Excel export above, the default) or "servicenow"
+# (the Table API of a real instance or of the local mock in servicenow_mock/).
+INCIDENT_SOURCE = os.getenv("INCIDENT_SOURCE", "workbook").strip().lower()
+SERVICENOW_URL = os.getenv("SERVICENOW_URL", "")
+SERVICENOW_USER = os.getenv("SERVICENOW_USER", "")
+SERVICENOW_PASSWORD = os.getenv("SERVICENOW_PASSWORD", "")
 # Audit log and work notes. On Railway, mount a volume here (or set COPILOT_RUNTIME_DIR to the
 # volume's path) so they survive redeploys and restarts.
 RUNTIME_DIR = Path(os.getenv("COPILOT_RUNTIME_DIR", DATA_DIR / "runtime"))

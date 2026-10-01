@@ -19,6 +19,52 @@ copy .env.example .env          # then set GROQ_API_KEY
 If no key is set, or Groq is unreachable, the app still works. It shows similar incidents only (the
 PRD's low-confidence view) and uses a notes template instead of a generated draft.
 
+## ServiceNow (mock or real)
+
+`servicenow_mock/` is a local stand-in for a ServiceNow instance while a real developer instance
+is unavailable. It provides the same **Table API** (`/api/now/table/incident` with `sysparm_query`,
+`sysparm_limit` / `offset` / `fields` / `display_value`, GET / POST / PATCH, basic auth,
+`{"result": ...}` responses), ServiceNow field names and state / priority codes, and a
+ServiceNow-style incident list and form. It is seeded from the incident workbook into
+`servicenow_mock/data/incident.db`. Delete that file to reset it.
+
+```bash
+.venv\Scripts\pip install -r servicenow_mock\requirements.txt
+.venv\Scripts\python -m uvicorn servicenow_mock.server:app --port 8600
+```
+
+- **Incident list:** http://localhost:8600 (search, filter by state, priority and group; open an
+  incident to see its fields and work notes, add notes, change state).
+- **API:** http://localhost:8600/api/now/table/incident, with the user `admin` and password
+  `admin` (local mock only; change them with `MOCK_SN_USER` / `MOCK_SN_PASSWORD`). Interactive
+  API docs are at `/api/docs`.
+
+To make the copilot use ServiceNow instead of the workbook, add to `.env`:
+
+```
+INCIDENT_SOURCE=servicenow
+SERVICENOW_URL=http://localhost:8600
+SERVICENOW_USER=admin
+SERVICENOW_PASSWORD=admin
+```
+
+The copilot then reads the queue and history from the Table API, and writes engineer actions back
+to the incident:
+
+| Copilot action | ServiceNow update |
+|---|---|
+| Acknowledge | state In Progress, assigned to the engineer, work note |
+| Run step / Request approval | work note with the step (and approver and change reference) |
+| Escalate | escalation High, work note with the reason |
+| Mark update as sent | work note with the stakeholder update |
+| Resolve | state Resolved, close code, close notes, root cause, work note |
+
+Changes made directly in ServiceNow, such as an incident resolved there, reach the copilot on the
+next auto-refresh. If ServiceNow can't be reached, the copilot keeps working, warns, and logs
+`itsm_sync_failed` on the timeline. For a real instance, change only the URL and credentials. The
+custom fields `u_error_code`, `u_business_area`, `u_rca` and `u_closing_notes` would need adding
+to the Incident table, or mapping to existing fields, in `copilot/servicenow.py`.
+
 ## Deploy on Railway
 
 The repo includes a `Dockerfile` (Python 3.12) and a `railway.json` (start command and a health

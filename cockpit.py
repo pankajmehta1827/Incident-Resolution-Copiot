@@ -12,7 +12,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from copilot import audit, config, engine, ops
+from copilot import audit, config, engine, ops, servicenow
 from copilot.llm import LLMUnavailable
 import ui_cards
 from ui_common import data_signature, first_sentence, full_queue, resolved_numbers
@@ -161,6 +161,26 @@ def open_incident(kb, qv: QueueView, user_id: str, model: str, spinner_slot=None
                cited_refs=sorted({rec.source(sid).ref for s in rec.steps for sid in s.sources}))
 
 
+# --- ServiceNow write-back ---------------------------------------------------------------
+
+def itsm_sync(c: Ctx, body: dict, what: str) -> None:
+    """Record an engineer action on the ServiceNow incident (when ServiceNow is the source).
+    A failure never blocks the copilot: it is logged and shown as a warning."""
+    if c.is_ask or not servicenow.enabled():
+        return
+    try:
+        servicenow.update(c.number, body)
+        audit.log("itsm_synced", c.user_id, c.number, what)
+    except Exception as exc:  # network, auth, missing record
+        audit.log("itsm_sync_failed", c.user_id, c.number, what, details={"error": str(exc)[:300]})
+        st.toast(f"Saved in the copilot, but ServiceNow was not updated ({what}). Update it manually.",
+                 icon=":material/sync_problem:")
+
+
+def _user_name(user_id: str) -> str:
+    return config.USERS.get(user_id, {}).get("name", user_id)
+
+
 # --- Dialogs ------------------------------------------------------------------------------
 
 @st.dialog("Resolve incident", width="large")
@@ -185,6 +205,11 @@ def resolve_dialog(c: Ctx) -> None:
         audit.save_work_note(c.number, c.user_id, note)
         audit.log("note_saved", c.user_id, c.number, "closure notes saved")
         audit.log("resolve", c.user_id, c.number, "resolved by engineer")
+        itsm_sync(c, {"state": 6, "close_code": "Solved (Permanently)", "u_rca": cause,
+                      "close_notes": "\n".join(note["steps_taken"]),
+                      "work_notes": f"Resolved in Incident Copilot by {_user_name(c.user_id)}.\n"
+                                    f"Symptom: {symptom}\nRoot cause: {cause}\nVerification: {verification}"},
+                  "resolved")
         st.session_state.notes.pop(c.dkey, None)
         st.session_state.flash = f"{c.number} resolved and removed from the queue"
         st.session_state.selected_incident = None       # move on to the next incident in the queue
@@ -204,6 +229,8 @@ def run_dialog(c: Ctx, n: int, step: engine.Step) -> None:
         audit.log("step_run", c.user_id, c.number, f"step {n} done by engineer",
                   sources=[c.rec.source(s).ref for s in step.sources],
                   details={"step": n, "text": step.text, "risk": step.risk})
+        itsm_sync(c, {"work_notes": f"Step {n} completed by {_user_name(c.user_id)} (Incident Copilot): {step.text}"},
+                  f"step {n} work note")
         st.rerun()
 
 
@@ -219,6 +246,8 @@ def approval_dialog(c: Ctx, n: int, step: engine.Step) -> None:
                  icon=":material/verified:"):
         audit.log("step_approved", c.user_id, c.number, f"step {n} approved",
                   details={"step": n, "approver": approver.strip(), "change": change.strip(), "text": step.text})
+        itsm_sync(c, {"work_notes": f"Step {n} approved by {approver.strip()} under {change.strip()}: {step.text}"},
+                  f"step {n} approval")
         st.rerun()
 
 
@@ -228,6 +257,9 @@ def escalate_dialog(c: Ctx) -> None:
     reason = st.text_area("Reason", placeholder="What you tried and why it needs escalation")
     if st.button("Escalate", type="primary", disabled=not reason.strip(), icon=":material/north_east:"):
         audit.log("escalate", c.user_id, c.number, reason.strip(), details={"to": c.rec.escalation})
+        itsm_sync(c, {"escalation": 2, "work_notes": f"Escalated to {c.rec.escalation} by "
+                                                     f"{_user_name(c.user_id)}. Reason: {reason.strip()}"},
+                  "escalation")
         st.rerun()
 
 
@@ -293,6 +325,9 @@ def render_header_actions(c: Ctx, stretch: bool = False) -> None:
     if st.button("Acknowledged" if c.state.acknowledged else "Acknowledge", width=width,
                  disabled=c.state.acknowledged or c.state.status == "Resolved"):
         audit.log("acknowledge", c.user_id, c.number, "acknowledged; took ownership")
+        itsm_sync(c, {"state": 2, "assigned_to": _user_name(c.user_id),
+                      "work_notes": f"Acknowledged in Incident Copilot by {_user_name(c.user_id)}."},
+                  "acknowledged, assignee set")
         st.rerun()
     if st.button("Resolved" if c.state.status == "Resolved" else "Resolve", type="primary", width=width,
                  disabled=c.state.status == "Resolved"):
@@ -413,6 +448,8 @@ def render_workspace(c: Ctx, compact: bool = False) -> None:
                 if st.button("Mark as sent", type="primary", icon=":material/send:"):
                     audit.log("update_sent", c.user_id, number, "sent by engineer",
                               details={"audience": upd["audience"], "subject": subject, "body": body})
+                    itsm_sync(c, {"work_notes": f"Stakeholder update sent ({upd['audience']}).\n"
+                                                f"Subject: {subject}\n{body}"}, "stakeholder update")
                     st.session_state.updates.pop(c.dkey, None)
                     st.toast("Update recorded on the timeline", icon=":material/check:")
                     st.rerun()

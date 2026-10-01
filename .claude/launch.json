@@ -6,6 +6,12 @@
       "runtimeExecutable": ".venv/Scripts/python.exe",
       "runtimeArgs": ["-m", "streamlit", "run", "streamlit_app.py", "--server.port", "8510"],
       "port": 8510
+    },
+    {
+      "name": "servicenow-mock",
+      "runtimeExecutable": ".venv/Scripts/python.exe",
+      "runtimeArgs": ["-m", "uvicorn", "servicenow_mock.server:app", "--port", "8600"],
+      "port": 8600
     }
   ]
 }

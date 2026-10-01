@@ -259,6 +259,8 @@ _EVENT_TEXT = {
     "step_run": lambda e: f"Step {e['details'].get('step')} done by engineer",
     "step_approved": lambda e: f"Step {e['details'].get('step')} approved by {e['details'].get('approver')} "
                                f"({e['details'].get('change')})",
+    "itsm_synced": lambda e: f"ServiceNow updated: {e['outcome']}",
+    "itsm_sync_failed": lambda e: f"ServiceNow NOT updated ({e['outcome']}); update it manually",
     "problem_created": lambda e: f"Problem record {e['outcome']} created",
     "escalate": lambda e: f"Escalated to {e['details'].get('to', '')}: {e['outcome']}",
     "resolve": lambda e: "Resolved",

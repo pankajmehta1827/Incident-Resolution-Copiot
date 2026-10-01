@@ -5,3 +5,4 @@ data/runtime/
 .streamlit/secrets.toml
 ~$*
 PRD/
+servicenow_mock/data/
