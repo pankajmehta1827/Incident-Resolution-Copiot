@@ -5,6 +5,7 @@ import pandas as pd
 import streamlit as st
 
 from copilot import audit, config, insights
+import ui_kbgaps
 from ui_common import get_kb
 
 kb = get_kb()
@@ -22,6 +23,8 @@ with st.container(horizontal=True):
     st.metric("Contradicted", len(report["contradicted"]), border=True)
     st.metric("Error patterns with no runbook", len(report["missing"]), border=True)
     st.metric("Excluded sources", len(excluded), border=True)
+
+ui_kbgaps.render(kb)
 
 st.subheader("Contradicted by recent resolutions")
 if report["contradicted"]:

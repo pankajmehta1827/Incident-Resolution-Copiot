@@ -34,7 +34,7 @@ def _stamp(paths) -> tuple:
 def sources_version() -> tuple:
     """Changes whenever the incidents (workbook file, or the newest ServiceNow update) or any
     knowledge document changes."""
-    docs = sorted(p for p in config.KNOWLEDGE_DIR.rglob("*") if p.suffix.lower() in (".docx", ".md"))
+    docs = knowledge.knowledge_files()          # bundled runbooks + approved knowledge-gap articles
     if servicenow.enabled():
         return (("servicenow", servicenow.latest_update()),) + _stamp(docs)
     return _stamp([config.INCIDENT_WORKBOOK, *docs])

@@ -235,10 +235,17 @@ def _load_markdown(path: Path, excluded: list[Exclusion]) -> Document | None:
     return doc
 
 
+def knowledge_files(knowledge_dir: Path = config.KNOWLEDGE_DIR) -> list[Path]:
+    """Bundled runbooks plus articles approved from knowledge-gap drafts (on the persistent volume)."""
+    roots = [knowledge_dir] + ([config.APPROVED_KB_DIR] if knowledge_dir == config.KNOWLEDGE_DIR else [])
+    return sorted(p for root in roots if root.exists() for p in root.rglob("*")
+                  if p.suffix.lower() in (".docx", ".md") and not p.name.startswith("~$"))
+
+
 def load_documents(knowledge_dir: Path = config.KNOWLEDGE_DIR) -> tuple[list[Document], list[Exclusion]]:
     docs: list[Document] = []
     excluded: list[Exclusion] = []
-    for path in sorted(knowledge_dir.rglob("*")):
+    for path in knowledge_files(knowledge_dir):
         if path.name.startswith("~$") or path.suffix.lower() not in (".docx", ".md"):
             continue  # Word lock files, images, etc.
         folder = path.parent.name.lower()

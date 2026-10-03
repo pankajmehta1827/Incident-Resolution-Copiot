@@ -632,7 +632,8 @@ def render_copilot(c: Ctx, compact: bool = False) -> None:
 
 _TOOL_LABEL = {"search_incidents": "Searched past incidents", "search_runbooks": "Searched runbooks",
                "read_runbook_section": "Read runbook section", "list_open_incidents": "Listed open incidents",
-               "get_incident": "Opened incident"}
+               "get_incident": "Opened incident", "get_pattern": "Read error pattern",
+               "get_closure_notes": "Read closure notes"}
 
 
 def _step_text(step: dict) -> str:

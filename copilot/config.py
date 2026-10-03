@@ -27,6 +27,12 @@ SERVICENOW_PASSWORD = os.getenv("SERVICENOW_PASSWORD", "")
 RUNTIME_DIR = Path(os.getenv("COPILOT_RUNTIME_DIR", DATA_DIR / "runtime"))
 AUDIT_LOG_FILE = RUNTIME_DIR / "audit_log.jsonl"
 WORK_NOTES_FILE = RUNTIME_DIR / "work_notes.jsonl"
+# Runbook articles approved from knowledge-gap drafts, and the drafts themselves. They live under
+# RUNTIME_DIR (the persistent volume on Railway) so they survive redeploys; the loader indexes them
+# alongside data/knowledge.
+APPROVED_KB_DIR = RUNTIME_DIR / "knowledge"
+KB_DRAFTS_DIR = RUNTIME_DIR / "kb_drafts"
+KB_APPROVER_ROLES = {"Knowledge Manager", "Team Lead"}
 
 DEFAULT_MODEL = os.getenv("GROQ_MODEL", "openai/gpt-oss-120b")
 

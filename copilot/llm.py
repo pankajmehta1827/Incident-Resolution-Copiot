@@ -83,13 +83,21 @@ def chat_with_tools(model: str, messages: list[dict], tools: list[dict] | None, 
         kwargs = {"model": m, "messages": messages, "temperature": 0.1, "max_completion_tokens": max_tokens}
         if tools:
             kwargs.update(tools=tools, tool_choice="auto")
-        try:
-            resp = _client().chat.completions.create(**kwargs)
-        except LLMUnavailable:
-            raise
-        except Exception as exc:
-            raise LLMUnavailable(f"{type(exc).__name__}: {exc}", _reason(exc),
-                                 rate_limited=isinstance(exc, groq.RateLimitError)) from exc
+        for attempt in (1, 2):
+            try:
+                resp = _client().chat.completions.create(**kwargs)
+                break
+            except LLMUnavailable:
+                raise
+            except groq.BadRequestError as exc:
+                # The model occasionally emits a malformed tool call ("tool_use_failed"); one retry
+                # almost always succeeds because sampling differs.
+                if attempt == 1 and ("tool_use_failed" in str(exc) or "Failed to call a function" in str(exc)):
+                    continue
+                raise LLMUnavailable(f"{type(exc).__name__}: {exc}", _reason(exc)) from exc
+            except Exception as exc:
+                raise LLMUnavailable(f"{type(exc).__name__}: {exc}", _reason(exc),
+                                     rate_limited=isinstance(exc, groq.RateLimitError)) from exc
         usage = {"prompt_tokens": getattr(resp.usage, "prompt_tokens", 0),
                  "completion_tokens": getattr(resp.usage, "completion_tokens", 0)}
         return resp.choices[0].message, usage

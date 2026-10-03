@@ -42,6 +42,24 @@ Guardrails:
 - **No match, no guess:** when nothing matches, it stops after two searches and says so.
 - **Audited:** each run is logged as `investigation`, with the tools used.
 
+## Knowledge-gap agent
+
+On **Knowledge health**, the *Knowledge-gap agent* finds error codes whose runbook is missing,
+or whose runbook leaves out what engineers actually did to fix them (compared against the
+resolution and closure notes). *Draft runbook update* runs an agent (`copilot/kbagent.py`, up to
+5 lookups) that reads the error pattern, closure notes and current runbook section. It then
+drafts a new or updated runbook section, with a source cited on every step.
+
+- **Evidence check:** a step citing a source the agent never opened, or naming a command or value
+  (limit, timeout, percentage) that isn't in any source, is dropped. Dropped items are listed
+  under the draft.
+- **Human approval:** only a *Knowledge Manager* or *Team Lead* can edit, approve and publish or
+  reject a draft (`KB_APPROVER_ROLES` in `copilot/config.py`). Other roles can request drafts.
+- **Publish:** approved articles are written to `$COPILOT_RUNTIME_DIR/knowledge/KB-<error code>.md`
+  and indexed automatically. From then on the copilot cites them like any other runbook. Drafts are
+  kept in `$COPILOT_RUNTIME_DIR/kb_drafts/`.
+- **Audited:** `kb_draft_created`, `kb_draft_approved`, `kb_draft_rejected`.
+
 ## Sign-in
 
 The app shows a sign-in screen until the person signs in. The accounts are the users in
@@ -147,7 +165,7 @@ docker run -p 8501:8501 --env-file .env incident-copilot
 | Page | PRD coverage |
 |---|---|
 | **Incident cockpit** | The four-zone layout from *Incident Copilot - Target Layout*. **Global bar:** search across incidents, CIs and error codes, *Ask agent* for free-text questions, page menu, system scope, role. **Smart queue:** sorted by SLA breach risk then severity, repeats (same system and error code) grouped under one parent with a *Create problem* prompt, filters in one menu, J / K to move. **Header:** ID, severity, status, SLA timer, owner, *Acknowledge* / *Resolve* (resolve drafts notes to edit). **Workspace tabs:** Overview (impact, CI path, last change, recent timeline), Timeline (every ITSM, copilot and engineer event), Related (similar incidents, open siblings, problem record, runbooks), Comms (copilot-drafted stakeholder update; the engineer sends it). **Copilot panel:** status and score with *why?*, summary, likely cause with evidence, steps with approval flags, actions (*Run step*, *Draft update*, *Escalate*), sources, accept / edit / reject, follow-up chat. |
-| **Knowledge health** | FR-11 weekly report (stale, contradicted, missing articles) and FR-13 Problem-record suggestions |
+| **Knowledge health** | Knowledge-gap agent (draft, review, publish runbook updates), FR-11 weekly report (stale, contradicted, missing articles) and FR-13 Problem-record suggestions |
 | **Audit log** | FR-9 hash-chained log with tamper and gap detection (kill-switch check), acceptance rate, P95 latency |
 | **Evals** | Offline launch gates: repeat detection, top-3 relevance, no-match honesty, access-control leaks |
 
