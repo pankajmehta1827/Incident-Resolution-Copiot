@@ -76,6 +76,36 @@ def complete_json(model: str, system: str, user: str, max_tokens: int = 2000) ->
         return out, dict(usage, fallback=True)
 
 
+def chat_with_tools(model: str, messages: list[dict], tools: list[dict] | None, max_tokens: int = 1500):
+    """One step of a tool-calling conversation. Returns (assistant message, usage dict).
+    Falls back to FALLBACK_MODEL once if the main model is rate-limited, like complete_json."""
+    def call(m: str):
+        kwargs = {"model": m, "messages": messages, "temperature": 0.1, "max_completion_tokens": max_tokens}
+        if tools:
+            kwargs.update(tools=tools, tool_choice="auto")
+        try:
+            resp = _client().chat.completions.create(**kwargs)
+        except LLMUnavailable:
+            raise
+        except Exception as exc:
+            raise LLMUnavailable(f"{type(exc).__name__}: {exc}", _reason(exc),
+                                 rate_limited=isinstance(exc, groq.RateLimitError)) from exc
+        usage = {"prompt_tokens": getattr(resp.usage, "prompt_tokens", 0),
+                 "completion_tokens": getattr(resp.usage, "completion_tokens", 0)}
+        return resp.choices[0].message, usage
+
+    try:
+        return call(model)
+    except LLMUnavailable as exc:
+        if not (exc.rate_limited and FALLBACK_MODEL and FALLBACK_MODEL != model):
+            raise
+        try:
+            msg, usage = call(FALLBACK_MODEL)
+        except LLMUnavailable:
+            raise exc from None
+        return msg, dict(usage, fallback=True)
+
+
 def _complete_json(model: str, system: str, user: str, max_tokens: int) -> tuple[dict, dict]:
     try:
         resp = _client().chat.completions.create(

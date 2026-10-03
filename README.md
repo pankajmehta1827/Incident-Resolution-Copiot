@@ -19,6 +19,29 @@ copy .env.example .env          # then set GROQ_API_KEY
 If no key is set, or Groq is unreachable, the app still works. It shows similar incidents only (the
 PRD's low-confidence view) and uses a notes template instead of a generated draft.
 
+## Investigation agent
+
+**Investigate deeper** in the copilot panel runs a read-only agent (`copilot/agent.py`). The
+standard copilot retrieves once and writes steps; the agent instead decides what to look up,
+using Groq tool calling with up to 6 lookups. Its tools:
+
+- `search_incidents`: past resolved patterns. It rephrases when the best score is weak.
+- `search_runbooks` and `read_runbook_section`: runbook sections.
+- `list_open_incidents`: other open tickets with the same error code or component.
+- `get_incident`: the details of one incident.
+
+It reports a cause hypothesis with a confidence level, evidence that cites the source of each
+point, related open incidents (click to open them) and suggested next checks. The full trail of
+lookups is under *How the agent got there*.
+
+Guardrails:
+- **Read-only tools:** every tool is filtered by the signed-in user's systems and knowledge spaces.
+- **Untrusted ticket text:** ticket text is masked and treated as data.
+- **Evidence check:** evidence citing a source the agent never opened is dropped, and a next check
+  naming a command or query not found in any source is removed.
+- **No match, no guess:** when nothing matches, it stops after two searches and says so.
+- **Audited:** each run is logged as `investigation`, with the tools used.
+
 ## Sign-in
 
 The app shows a sign-in screen until the person signs in. The accounts are the users in

@@ -12,7 +12,7 @@ from datetime import datetime
 import pandas as pd
 import streamlit as st
 
-from copilot import audit, config, engine, ops, servicenow
+from copilot import agent, audit, config, engine, ops, servicenow
 from copilot.llm import LLMUnavailable
 import ui_cards
 from ui_common import data_signature, first_sentence, full_queue, resolved_numbers
@@ -129,6 +129,7 @@ class Ctx:
     now: datetime
     best: object = None
     cited_refs: list[str] = field(default_factory=list)
+    resolved: set[str] = field(default_factory=set)
 
     @property
     def key(self):
@@ -158,7 +159,8 @@ def open_incident(kb, qv: QueueView, user_id: str, model: str, spinner_slot=None
                is_ask=incident.get("source") == ASK_SOURCE, sla=ops.sla_for(incident, qv.now),
                siblings=siblings, rec=rec, state=ops.state_for(incident, log), log=log, now=qv.now,
                best=next((m.incident for m in rec.similar if m.score >= config.MIN_CONFIDENCE), None),
-               cited_refs=sorted({rec.source(sid).ref for s in rec.steps for sid in s.sources}))
+               cited_refs=sorted({rec.source(sid).ref for s in rec.steps for sid in s.sources}),
+               resolved=qv.resolved)
 
 
 # --- ServiceNow write-back ---------------------------------------------------------------
@@ -583,6 +585,8 @@ def render_copilot(c: Ctx, compact: bool = False) -> None:
                           key=f"prb_{number}", disabled=bool(problem) or not can_problem, on_click=create_problem,
                           args=(c,), help=f"{len(c.siblings) + 1} open incidents with this error code")
 
+    render_investigation(c)
+
     # Sources and feedback
     st.divider()
     with st.container(horizontal=True, vertical_alignment="center", gap="small"):
@@ -622,6 +626,87 @@ def render_copilot(c: Ctx, compact: bool = False) -> None:
         with st.chat_message(msg["role"], avatar=":material/person:" if msg["role"] == "user"
                              else ":material/auto_awesome:"):
             st.markdown(msg["content"])
+
+
+# --- Render: investigation agent ----------------------------------------------------------
+
+_TOOL_LABEL = {"search_incidents": "Searched past incidents", "search_runbooks": "Searched runbooks",
+               "read_runbook_section": "Read runbook section", "list_open_incidents": "Listed open incidents",
+               "get_incident": "Opened incident"}
+
+
+def _step_text(step: dict) -> str:
+    args = ", ".join(f"{k}: {v}" for k, v in step["args"].items() if v)
+    return f"**{_TOOL_LABEL.get(step['tool'], step['tool'])}**" + (f" · `{args[:90]}`" if args else "") + \
+        f" → {step['summary']}"
+
+
+def _run_investigation(c: Ctx) -> None:
+    user = config.USERS[c.user_id]
+    with st.status("The agent is investigating…", expanded=True) as status:
+        inv = agent.investigate(c.kb, c.incident, user, c.resolved, c.model,
+                                on_step=lambda s: status.write(_step_text(s)))
+        status.update(label="Investigation failed" if inv.error else
+                      f"Investigation done · {inv.tool_calls} lookups · {inv.seconds:.0f} s",
+                      state="error" if inv.error else "complete", expanded=False)
+    st.session_state.investigations[c.dkey] = inv
+    audit.log("investigation", c.user_id, c.number,
+              inv.error or f"{inv.confidence} confidence · {inv.tool_calls} lookups",
+              sources=[e["source"] for e in inv.evidence],
+              details={"tools": [s["tool"] for s in inv.trace], "dropped": len(inv.dropped),
+                       "seconds": round(inv.seconds, 1), **inv.usage})
+
+
+def render_investigation(c: Ctx) -> None:
+    """'Investigate deeper': a read-only agent that decides what to look up, shown with its trail."""
+    st.session_state.setdefault("investigations", {})
+    inv: agent.Investigation | None = st.session_state.investigations.get(c.dkey)
+    if inv is None:
+        with st.container(border=True):
+            st.markdown("**:blue[:material/travel_explore:] Investigate deeper**")
+            st.caption("An agent searches past incidents, runbooks and other open tickets step by step, "
+                       "then states the likely cause with evidence. Read-only; up to "
+                       f"{agent.MAX_TOOL_CALLS} lookups.")
+            if st.button("Start investigation", icon=":material/travel_explore:", key=f"inv_{c.number}",
+                         width="stretch"):
+                _run_investigation(c)
+                st.rerun()
+        return
+
+    with st.container(border=True):
+        with st.container(horizontal=True, vertical_alignment="center", gap="small"):
+            st.markdown("**:blue[:material/travel_explore:] Investigation**", width="content")
+            st.space("stretch")
+            if not inv.error:
+                st.badge(f"{inv.confidence.title()} confidence",
+                         color={"high": "green", "medium": "orange"}.get(inv.confidence, "red"))
+            if st.button("", icon=":material/refresh:", type="tertiary", key=f"inv_again_{c.number}",
+                         help="Run the investigation again"):
+                st.session_state.investigations.pop(c.dkey, None)
+                st.rerun()
+        if inv.error:
+            st.error(inv.error, icon=":material/error:")
+            return
+        st.markdown(f"**{inv.hypothesis or 'No conclusion.'}**")
+        if inv.evidence:
+            st.markdown("  \n".join(f":blue[›] {e['claim']} · `{e['source']}`" for e in inv.evidence))
+        if inv.related_open:
+            st.caption(f"Other open incidents that look the same ({len(inv.related_open)})")
+            with st.container(horizontal=True, gap="xsmall"):
+                for n in inv.related_open[:8]:
+                    st.button(n, key=f"inv_open_{c.number}_{n}", type="tertiary", on_click=select, args=(n,))
+        if inv.next_checks:
+            st.caption("Suggested next checks (read-only; verify before running anything)")
+            st.markdown("\n".join(f"- {x}" for x in inv.next_checks))
+        if inv.gaps:
+            st.caption(f":material/help: Not found: {inv.gaps}")
+        with st.expander(f"How the agent got there · {inv.tool_calls} lookups · {inv.seconds:.0f} s"):
+            for i, step in enumerate(inv.trace, 1):
+                st.markdown(f"{i}. {_step_text(step)}")
+            if inv.dropped:
+                st.caption(f"{len(inv.dropped)} item(s) removed by the evidence check:")
+                for d in inv.dropped:
+                    st.caption(f"✕ {d['claim'][:140]} ({d['source']})")
 
 
 def render_chat_input(c: Ctx) -> None:
