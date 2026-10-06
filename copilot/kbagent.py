@@ -96,7 +96,19 @@ def find_gaps(kb) -> list[Gap]:
             gaps.append(Gap(h.error_code, h.application, "incomplete", h.occurrences, h.number,
                             h.short_description,
                             f"Runbook omits what engineers did: {', '.join(missing[:6])}", runbook_doc=h.kb_used))
-    return sorted(gaps, key=lambda g: (g.kind != "missing", -g.occurrences))
+    # One error code can span several incident patterns (different wording or root cause). Drafts and
+    # published articles are per error code, so keep one gap per code: the most severe kind, with the
+    # occurrences of every pattern of that kind added up.
+    merged: dict[str, Gap] = {}
+    for g in sorted(gaps, key=lambda g: (g.kind != "missing", -g.occurrences)):
+        first = merged.get(g.error_code)
+        if first is None:
+            merged[g.error_code] = g
+        elif first.kind == g.kind:
+            first.occurrences += g.occurrences
+            first.detail = first.detail.replace(f"fixed it {first.occurrences - g.occurrences} times",
+                                                f"fixed it {first.occurrences} times")
+    return sorted(merged.values(), key=lambda g: (g.kind != "missing", -g.occurrences))
 
 
 # --- 2. Drafting agent ------------------------------------------------------------------
