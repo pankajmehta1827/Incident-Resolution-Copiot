@@ -62,7 +62,7 @@ drafts a new or updated runbook section, with a source cited on every step.
 
 ## Sign-in
 
-The app shows a sign-in screen until the person signs in. The accounts are the users in
+Sign-in is **off for now**. With `COPILOT_AUTH=on`, the app shows a sign-in screen until the person signs in. The accounts are the users in
 `copilot/config.py`. Each signs in with a password set in an environment variable (a Railway
 variable, or `.env` locally):
 
@@ -79,7 +79,8 @@ variable, or `.env` locally):
   their name and permissions apply to queues, audit entries and ServiceNow work notes.
 - **Lockout:** five wrong passwords in a row lock that browser session for a minute.
 - **Audit:** sign-ins, failures and sign-outs are logged. Passwords never are.
-- **Local development:** `COPILOT_AUTH=off` turns sign-in off.
+- **Off for now:** sign-in is off by default and the app shows a "Signed in as" picker.
+  Set `COPILOT_AUTH=on` (and the password variables) to turn it on.
 - **Production:** this is prototype-grade. Use single sign-on instead (Streamlit's `st.login`
   with Microsoft Entra ID or Google), so no passwords live in the app's settings.
 

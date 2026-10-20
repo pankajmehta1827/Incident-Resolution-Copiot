@@ -4,9 +4,9 @@ Accounts are the users in config.USERS. Each one signs in with a password suppli
 environment variable named COPILOT_PASSWORD_<USER ID in capitals, "." -> "_">, e.g.
 COPILOT_PASSWORD_TEAM_LEAD for "team.lead". A user without that variable cannot sign in.
 
-Sign-in is required unless COPILOT_AUTH=off (meant for local development only). With sign-in
-required and no passwords configured, the app stays locked: deploying without setting any
-password must never leave it open.
+Sign-in is OFF for now (the prototype shows a "Signed in as" picker instead). Set COPILOT_AUTH=on
+to turn it on. With sign-in on and no passwords configured, the app stays locked: turning it on
+without setting any password must never leave it open.
 
 This is a prototype-grade login. For production, use single sign-on (Streamlit's st.login with
 Microsoft Entra ID or Google) so passwords never live in the app's settings.
@@ -24,7 +24,7 @@ LOCKOUT_SECONDS = 60
 
 
 def required() -> bool:
-    return os.getenv("COPILOT_AUTH", "on").strip().lower() not in ("off", "0", "false", "no")
+    return os.getenv("COPILOT_AUTH", "off").strip().lower() in ("on", "1", "true", "yes")
 
 
 def env_name(user_id: str) -> str:
