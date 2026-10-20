@@ -1,0 +1,533 @@
+<title>Incident Copilot Architecture</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: an operations-console map. Full-width system diagram on top, flow list + component inspector below. */
+:root {
+  --bg: #f3f5f8; --panel: #ffffff; --fg: #18202b; --muted: #5b6676; --line: #d5dbe4; --frame: #e8ecf2;
+  --accent: #1f6feb; --accent-soft: #dce9fd;
+  --z-people: #6b7a90; --z-screen: #2f6fd6; --z-logic: #7a4fd0; --z-service: #0f8a7e; --z-external: #b26b00; --z-data: #4b7a2a;
+  --edge: #b9c2cf;
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0e131a; --panel: #151c25; --fg: #e4e9f0; --muted: #93a0b2; --line: #2a3442; --frame: #121921;
+  --accent: #5b9dff; --accent-soft: #19304f;
+  --z-people: #9aa7ba; --z-screen: #6fa2f5; --z-logic: #a98bf0; --z-service: #3fc2b3; --z-external: #e3a03c; --z-data: #8cc35f;
+  --edge: #3a4555; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0e131a; --panel: #151c25; --fg: #e4e9f0; --muted: #93a0b2; --line: #2a3442; --frame: #121921;
+  --accent: #5b9dff; --accent-soft: #19304f;
+  --z-people: #9aa7ba; --z-screen: #6fa2f5; --z-logic: #a98bf0; --z-service: #3fc2b3; --z-external: #e3a03c; --z-data: #8cc35f;
+  --edge: #3a4555; color-scheme: dark }
+
+* { box-sizing: border-box }
+body { background: var(--bg); color: var(--fg); font-family: var(--sans); font-size: 15px; line-height: 1.5; }
+.wrap { max-width: 1260px; margin: 0 auto; padding-inline: 16px; padding-block: 28px 48px; display: grid; gap: 20px; }
+header { display: grid; gap: 6px; }
+.eyebrow { font-family: var(--mono); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+h1 { margin: 0; font-size: clamp(24px, 3.2vw, 32px); font-weight: 600; text-wrap: balance; }
+.lede { margin: 0; color: var(--muted); max-width: 72ch; }
+.legend { display: flex; flex-wrap: wrap; gap: 8px 18px; font-size: 13px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+.legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+
+.map { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+.map svg { display: block; width: 100%; min-width: 980px; height: auto; }
+.hint { font-size: 13px; color: var(--muted); margin: 0; }
+
+.lower { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 20px; align-items: start; }
+@media (max-width: 860px) { .lower { grid-template-columns: minmax(0, 1fr); } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 18px; min-width: 0; }
+.card h2 { margin: 0 0 12px; font-size: 13px; font-family: var(--mono); font-weight: 500; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+
+.flows { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.flows button { font: inherit; font-size: 14px; border: 1px solid var(--line); background: transparent; color: var(--fg);
+  padding: 6px 12px; border-radius: 999px; cursor: pointer; }
+.flows button:hover { border-color: var(--accent); }
+.flows button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.flowdesc { margin: 0 0 12px; color: var(--muted); font-size: 14px; }
+ol.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; }
+ol.steps li button { all: unset; box-sizing: border-box; display: grid; grid-template-columns: 26px minmax(0, 1fr); gap: 10px;
+  width: 100%; padding: 8px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+ol.steps li button:hover, ol.steps li button.on { background: var(--accent-soft); }
+ol.steps .n { width: 22px; height: 22px; border-radius: 50%; background: var(--accent); color: #fff; font: 600 12px/22px var(--mono);
+  text-align: center; font-variant-numeric: tabular-nums; }
+ol.steps .what { display: block; }
+ol.steps .route { display: block; font-family: var(--mono); font-size: 12px; color: var(--muted); }
+
+.inspector .zone { font-family: var(--mono); font-size: 12px; letter-spacing: .06em; text-transform: uppercase; }
+.inspector h3 { margin: 2px 0 4px; font-size: 22px; font-weight: 600; }
+.inspector .file { font-family: var(--mono); font-size: 13px; color: var(--muted); word-break: break-word; }
+.inspector p { margin: 12px 0 0; max-width: 70ch; }
+.inspector dl { margin: 14px 0 0; display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 8px 16px; font-size: 14px; }
+.inspector dt { color: var(--muted); }
+.inspector dd { margin: 0; min-width: 0; }
+.inspector ul { margin: 0; padding-left: 18px; }
+.inspector code, .flowdesc code { font-family: var(--mono); font-size: 12.5px; background: var(--frame); padding: 1px 5px; border-radius: 4px; }
+.links { display: flex; flex-wrap: wrap; gap: 6px; }
+.links button { font: 13px var(--sans); border: 1px solid var(--line); background: transparent; color: var(--fg); border-radius: 6px; padding: 3px 8px; cursor: pointer; }
+.links button:hover { border-color: var(--accent); }
+
+/* SVG */
+.zoneframe { fill: var(--frame); stroke: var(--line); }
+.zonelabel { font: 600 12px var(--mono); letter-spacing: .08em; fill: var(--muted); text-transform: uppercase; }
+.rowlabel { font: 500 11px var(--mono); letter-spacing: .1em; fill: var(--muted); }
+.node { cursor: pointer; }
+.node rect.box { fill: var(--panel); stroke: var(--line); stroke-width: 1.2; transition: opacity .15s; }
+.node rect.tag { stroke: none; }
+.node text.t { font: 600 13px var(--sans); fill: var(--fg); }
+.node text.s { font: 400 10.5px var(--mono); fill: var(--muted); }
+.node:focus { outline: none; }
+.node:focus-visible rect.box, .node.sel rect.box { stroke: var(--accent); stroke-width: 2.4; }
+.node.on rect.box { stroke: var(--accent); stroke-width: 1.8; }
+.dim .node:not(.on):not(.sel) { opacity: .35; }
+.edge { fill: none; stroke: var(--edge); stroke-width: 1.2; }
+.dim .edge { opacity: .35; }
+.edge.on { stroke: var(--accent); stroke-width: 2; opacity: 1; }
+.edge.focus { stroke-width: 3.4; }
+.badge circle { fill: var(--accent); }
+.badge text { font: 600 11px var(--mono); fill: #fff; text-anchor: middle; dominant-baseline: central; }
+.elabel rect { fill: var(--panel); stroke: var(--accent); }
+.elabel text { font: 500 11.5px var(--mono); fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Incident Resolution Copilot · end-to-end architecture</div>
+    <h1>How a ticket becomes a grounded fix</h1>
+    <p class="lede">Every part of the system, from the engineer's browser through the copilot service on Railway to Groq and the
+      ServiceNow mock. Pick a flow to trace a request step by step, or click any box to see what it does and what it talks to.</p>
+    <div class="legend" aria-label="Legend">
+      <span><i style="background:var(--z-people)"></i>People &amp; delivery</span>
+      <span><i style="background:var(--z-screen)"></i>Screens</span>
+      <span><i style="background:var(--z-logic)"></i>Logic &amp; agents</span>
+      <span><i style="background:var(--z-service)"></i>Shared services</span>
+      <span><i style="background:var(--z-external)"></i>External services</span>
+      <span><i style="background:var(--z-data)"></i>Data &amp; storage</span>
+    </div>
+  </header>
+
+  <div class="map" id="map">
+    <svg id="svg" viewBox="0 0 1180 740" role="img"
+         aria-label="Architecture map: browsers reach the Streamlit copilot on Railway, which calls Groq for AI, the ServiceNow mock for incidents, and a Railway volume for audit log, drafts and approved runbooks.">
+      <defs>
+        <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0,0 L10,5 L0,10 z" fill="context-stroke"></path>
+        </marker>
+      </defs>
+      <g id="frames"></g>
+      <g id="edges"></g>
+      <g id="nodes"></g>
+      <g id="badges"></g>
+    </svg>
+  </div>
+  <p class="hint">On a phone, scroll the map sideways. Tab moves between boxes; Enter opens one.</p>
+
+  <div class="lower">
+    <section class="card" aria-labelledby="flows-h">
+      <h2 id="flows-h">Trace a flow</h2>
+      <div class="flows" id="flows" role="group" aria-label="Flows"></div>
+      <p class="flowdesc" id="flowdesc"></p>
+      <ol class="steps" id="steps"></ol>
+    </section>
+    <section class="card inspector" aria-live="polite" aria-labelledby="insp-h">
+      <h2 id="insp-h">Component</h2>
+      <div id="inspector"></div>
+    </section>
+  </div>
+</div>
+
+<script>
+const ZONE = {
+  people: ["People", "var(--z-people)"], screen: ["Screen", "var(--z-screen)"], logic: ["Logic & agents", "var(--z-logic)"],
+  service: ["Shared service", "var(--z-service)"], external: ["External service", "var(--z-external)"], data: ["Data & storage", "var(--z-data)"],
+};
+
+const FRAMES = [
+  { x: 16, y: 40, w: 150, h: 290, label: "People" },
+  { x: 16, y: 520, w: 150, h: 200, label: "Delivery" },
+  { x: 178, y: 40, w: 676, h: 680, label: "Copilot service · Railway", end: true },
+  { x: 874, y: 40, w: 290, h: 680, label: "Outside the copilot" },
+];
+const ROWS = [{ y: 70, t: "SCREENS" }, { y: 260, t: "LOGIC & AGENTS" }, { y: 450, t: "SHARED SERVICES" }];
+
+const N = {
+  desktop:  { x: 28, y: 80, w: 126, zone: "people", t: "Desktop browser", s: "engineers, leads",
+    what: "Engineers, team leads and knowledge managers open the copilot URL. The app reads the User-Agent and shows the desktop cockpit.",
+    notes: ["Roles: L2 Support, Mainframe SME, Team Lead, Knowledge Manager (config.USERS).", "Add ?view=mobile or ?view=desktop to force a layout."] },
+  phone:    { x: 28, y: 150, w: 126, zone: "people", t: "Phone browser", s: "auto mobile view",
+    what: "Same URL on a phone. Device detection routes to a single-column mobile page with the same actions.",
+    notes: ["Detected from the User-Agent; no separate app to install."] },
+  snowuser: { x: 28, y: 220, w: 126, zone: "people", t: "ServiceNow user", s: "incident_list.do",
+    what: "Anyone checking the ServiceNow mock directly in a browser, for example to confirm the copilot wrote back a resolution.",
+    notes: ["Mock UI at /incident_list.do and /incident.do; basic auth."] },
+  github:   { x: 28, y: 560, w: 126, zone: "people", t: "GitHub repo", s: "main branch",
+    what: "Source of truth for both services: pankajmehta1827/Incident-Resolution-Copiot. A push to main triggers Railway to rebuild.",
+    notes: [".env is never committed; secrets live in Railway variables."] },
+  build:    { x: 28, y: 640, w: 126, zone: "people", t: "Railway build", s: "Dockerfile · start.sh",
+    what: "One Docker image serves both services. start.sh reads APP_ROLE: the default starts Streamlit, APP_ROLE=servicenow-mock starts the FastAPI mock on 0.0.0.0:$PORT.",
+    notes: ["railway.json: Dockerfile builder, health check /_stcore/health.", "The mock answers that health path too, so one railway.json fits both."] },
+
+  signin:   { x: 194, y: 80, w: 136, zone: "screen", t: "Sign-in", s: "off for now",
+    what: "Off for now: the app opens straight to the cockpit with a \"Signed in as\" picker. With COPILOT_AUTH=on it becomes a gate in front of every page that checks the user id against a password stored in an environment variable.",
+    notes: ["Password per user: COPILOT_PASSWORD_<USER_ID> (e.g. COPILOT_PASSWORD_RAJESH_KUMAR).", "Turn it on with COPILOT_AUTH=on in the Railway variables; lockout and audit code are already in place."] },
+  shell:    { x: 344, y: 80, w: 152, zone: "screen", t: "App shell", s: "streamlit_app.py",
+    what: "Entry point. Sets session defaults, picks desktop or mobile pages, draws the top bar and runs the 15-second auto-refresh fragment.",
+    notes: ["Auto-refresh compares a data signature (sources, audit log, notes) and reruns only when something changed.", "Hidden st.navigation with pages for cockpit, mobile, knowledge health, audit log and evals."] },
+  cockpit:  { x: 510, y: 80, w: 162, zone: "screen", t: "Incident cockpit", s: "workbench.py · cockpit.py",
+    what: "The four-zone desktop layout: smart queue, incident header with live SLA timer, workspace tabs, and the copilot panel with steps, approvals and chat.",
+    notes: ["Actions: acknowledge, run step, request approval, draft update, escalate, create problem, resolve.", "Resolve and escalate write back to ServiceNow and are audited."] },
+  mobile:   { x: 686, y: 80, w: 154, zone: "screen", t: "Mobile view", s: "app_pages/mobile.py",
+    what: "Phone layout: list of open incidents, then a detail screen with the SLA box, copilot steps and the same actions as desktop.",
+    notes: ["Shares all logic with the cockpit through cockpit.py."] },
+  kbhealth: { x: 194, y: 150, w: 228, zone: "screen", t: "Knowledge health", s: "knowledge_health.py · ui_kbgaps.py",
+    what: "For knowledge managers: the knowledge-gap agent (gaps, drafts to review, reviewed) plus the weekly report of stale and contradicted articles and Problem-record suggestions.",
+    notes: ["Only Knowledge Manager or Team Lead can approve or reject drafts."] },
+  auditpg:  { x: 436, y: 150, w: 168, zone: "screen", t: "Audit log page", s: "app_pages/audit_log.py",
+    what: "Shows the hash-chained audit log with tamper and gap detection, acceptance rate and P95 latency.",
+    notes: ["A broken hash chain is flagged on screen (kill-switch check)."] },
+  evals:    { x: 618, y: 150, w: 222, zone: "screen", t: "Evals", s: "evals.py (page + copilot)",
+    what: "Offline launch gates run without model calls: repeat detection, top-3 relevance, no-match honesty and access-control leaks.",
+    notes: ["Test cases in data/eval_set.json."] },
+
+  engine:   { x: 194, y: 280, w: 154, zone: "logic", t: "Copilot pipeline", s: "copilot/engine.py",
+    what: "The RAG pipeline from the PRD: mask → match → confidence state → retrieve → generate → groundedness check → freshness/conflict check → risk labels → log.",
+    notes: ["Every step must cite a source; commands and numbers must appear in that source or they are removed.", "Three-level step risk; high-risk steps need a second approver.", "No match, no guess: low scores return similar incidents only."] },
+  agent:    { x: 362, y: 280, w: 154, zone: "logic", t: "Investigation agent", s: "copilot/agent.py",
+    what: "'Investigate deeper': a read-only tool-calling agent that decides what to look up (up to 6 calls) and returns a cause hypothesis with evidence, related open incidents and next checks.",
+    notes: ["Tools: search_incidents, search_runbooks, read_runbook_section, list_open_incidents, get_incident.", "Evidence citing a source it never opened is dropped; next checks with invented commands are removed."] },
+  kbagent:  { x: 530, y: 280, w: 154, zone: "logic", t: "Knowledge-gap agent", s: "copilot/kbagent.py",
+    what: "Finds error codes with no runbook or an incomplete one, drafts a cited runbook section (up to 5 tool calls), and publishes it after human approval.",
+    notes: ["Tools: get_pattern, get_closure_notes, search_runbooks, read_runbook_section, list_open_incidents.", "Steps with commands or values not found in a source are dropped.", "Approved article: /data/knowledge/KB-<error code>.md, indexed automatically."] },
+  ops:      { x: 698, y: 280, w: 142, zone: "logic", t: "SLA & timeline", s: "copilot/ops.py",
+    what: "SLA clocks (P1 4h, P2 8h, P3 24h, P4 72h), breach-risk sorting, queue grouping of repeats, IST formatting and the incident timeline built from audit events.",
+    notes: ["Breach risk when under 25% of the SLA window is left."] },
+  insights: { x: 194, y: 350, w: 154, zone: "logic", t: "Health insights", s: "copilot/insights.py",
+    what: "Weekly knowledge-health report (stale, contradicted, missing articles), Problem-record candidates (same error 5+ times in 30 days) and usage metrics.",
+    notes: [] },
+  uicommon: { x: 362, y: 350, w: 154, zone: "logic", t: "Cache & refresh", s: "ui_common.py",
+    what: "Builds and caches the knowledge base. The cache key is a version stamp of the sources, so a new ServiceNow update or a newly approved runbook triggers a re-index.",
+    notes: ["If ServiceNow is unreachable it shows a message and retries instead of crashing."] },
+
+  masking:  { x: 194, y: 470, w: 132, zone: "service", t: "Masking", s: "copilot/masking.py",
+    what: "Masks PII and secrets (connection strings, passwords, tokens) and detects prompt-injection text. Runs at ingestion, on incoming tickets, and on every model output.",
+    notes: [] },
+  retrieval:{ x: 340, y: 470, w: 152, zone: "service", t: "Hybrid retrieval", s: "copilot/retrieval.py",
+    what: "TF-IDF over word 1–2 grams plus character n-grams, so 'resource busy' finds ORA-00054 and '0C7' finds S0C7. Searches grouped incident patterns and runbook sections.",
+    notes: ["Top 3 incidents, top 5 sections; a section must score 0.08+ to be used."] },
+  rerank:   { x: 506, y: 470, w: 132, zone: "service", t: "Re-ranker", s: "copilot/rerank.py",
+    what: "Second stage: the model reads the ticket next to 10 candidates and reorders them by how likely the past fix applies. It only reorders; confidence still comes from retrieval.",
+    notes: ["Falls back to retrieval order on any failure. COPILOT_RERANK=0 turns it off."] },
+  llm:      { x: 652, y: 470, w: 188, zone: "service", t: "AI client", s: "copilot/llm.py",
+    what: "Thin wrapper over the Groq SDK: JSON-mode completions and tool-calling steps. Falls back to a smaller model when the main one hits its usage limit, and retries a malformed tool call once.",
+    notes: ["Failures surface as plain reasons on screen; model names are never shown."] },
+  knowledge:{ x: 194, y: 550, w: 182, zone: "service", t: "Knowledge loader", s: "copilot/knowledge.py",
+    what: "Reads runbooks (Word, Markdown) and incidents (ServiceNow or the Excel workbook), splits runbooks into sections, groups incidents into error patterns and builds the open queue.",
+    notes: ["Indexes bundled runbooks plus approved knowledge-gap articles from /data/knowledge."] },
+  snowconn: { x: 390, y: 550, w: 182, zone: "service", t: "ServiceNow connector", s: "copilot/servicenow.py",
+    what: "Table API client over httpx. Pages through incidents, reads the newest update time for change detection, and PATCHes resolutions and escalations back.",
+    notes: ["Enabled when INCIDENT_SOURCE=servicenow with SERVICENOW_URL / USER / PASSWORD."] },
+  audit:    { x: 586, y: 550, w: 162, zone: "service", t: "Audit writer", s: "copilot/audit.py",
+    what: "Appends every copilot and engineer event to a hash-chained JSONL log, so edits or gaps are detectable.",
+    notes: ["Events include match, recommendation, investigation, step_approved, resolve, itsm_synced, kb_draft_created, kb_draft_approved."] },
+  config:   { x: 194, y: 630, w: 182, zone: "service", t: "Settings", s: "copilot/config.py · env",
+    what: "Thresholds, SLA hours, users and roles, paths and feature switches, read from environment variables with safe defaults.",
+    notes: ["Key variables: GROQ_API_KEY, INCIDENT_SOURCE, SERVICENOW_*, COPILOT_RUNTIME_DIR, COPILOT_PASSWORD_*."] },
+
+  volume:   { x: 890, y: 280, w: 258, zone: "data", t: "Railway volume /data", s: "COPILOT_RUNTIME_DIR",
+    what: "Persistent disk that survives redeploys: audit_log.jsonl, work_notes.jsonl, kb_drafts/ and approved runbooks in knowledge/.",
+    notes: ["Locally this is data/runtime/."] },
+  bundled:  { x: 890, y: 360, w: 258, zone: "data", t: "Bundled data", s: "xlsx workbook · 3 runbooks",
+    what: "Shipped in the image: the 5,000-incident Excel workbook and the Mainframe, AS400 and Java runbooks. The workbook is the incident source when ServiceNow is off.",
+    notes: ["The ServiceNow mock seeds its SQLite store from the same workbook."] },
+  groq:     { x: 890, y: 470, w: 258, zone: "external", t: "Groq API", s: "gpt-oss-120b · fallback 20b",
+    what: "Hosted language models, OpenAI-compatible chat completions with JSON mode and tool calling.",
+    notes: ["Key: GROQ_API_KEY in the copilot service only.", "Daily token limits apply; the fallback model keeps the copilot working."] },
+  snow:     { x: 890, y: 560, w: 258, h: 64, zone: "external", t: "ServiceNow mock", s: "FastAPI · SQLite · own Railway service",
+    what: "Implements the ServiceNow Table API for incidents (GET list, GET one, PATCH/PUT, POST) plus a simple list and form UI. Same image, APP_ROLE=servicenow-mock.",
+    notes: ["Endpoints: /api/now/table/incident, /api/now/table/incident/{sys_id}.", "Swap SERVICENOW_URL to a real instance without code changes."] },
+};
+
+// [from, to, label]
+const FLOWS = [
+  { id: "rag", name: "Recommendation", desc: "An engineer opens an incident and the copilot answers with cited steps. This is the core RAG path.",
+    steps: [
+      ["desktop", "shell", "HTTPS request; user chosen in the picker"],
+      ["shell", "cockpit", "Open the selected incident"],
+      ["cockpit", "engine", "recommend(incident, user)"],
+      ["engine", "masking", "Mask ticket text, check for injection"],
+      ["engine", "retrieval", "Find similar patterns and runbook sections"],
+      ["retrieval", "rerank", "Pass 10 candidates for re-ranking"],
+      ["rerank", "llm", "Ask the model to reorder"],
+      ["engine", "llm", "Generate steps as JSON"],
+      ["llm", "groq", "chat.completions (JSON mode)"],
+      ["engine", "cockpit", "Grounded steps, citations, risk labels"],
+      ["engine", "audit", "Log match and recommendation"],
+      ["audit", "volume", "Append to hash-chained audit_log.jsonl"],
+    ] },
+  { id: "investigate", name: "Investigation agent", desc: "'Investigate deeper' hands the incident to a read-only agent that chooses its own lookups.",
+    steps: [
+      ["cockpit", "agent", "Start investigation"],
+      ["agent", "llm", "Tool-calling loop, up to 6 calls"],
+      ["llm", "groq", "chat.completions with tools"],
+      ["agent", "retrieval", "search_incidents, search_runbooks"],
+      ["agent", "uicommon", "list_open_incidents, get_incident"],
+      ["agent", "cockpit", "Hypothesis, evidence, next checks (evidence-checked)"],
+      ["agent", "audit", "Log investigation with tools used"],
+      ["audit", "volume", "Append audit entry"],
+    ] },
+  { id: "kbgap", name: "Knowledge-gap agent", desc: "A knowledge manager turns what engineers actually did into an approved runbook that the copilot then cites.",
+    steps: [
+      ["kbhealth", "kbagent", "find_gaps, then Draft runbook update"],
+      ["kbagent", "uicommon", "get_pattern, get_closure_notes"],
+      ["kbagent", "retrieval", "search_runbooks, read_runbook_section"],
+      ["kbagent", "llm", "Tool-calling loop, up to 5 calls"],
+      ["llm", "groq", "chat.completions with tools"],
+      ["kbagent", "volume", "Save draft to kb_drafts/"],
+      ["kbhealth", "kbagent", "Approve & publish (Knowledge Manager / Team Lead)"],
+      ["kbagent", "volume", "Write knowledge/KB-<code>.md"],
+      ["volume", "knowledge", "New file changes the source version"],
+      ["knowledge", "retrieval", "Re-index; copilot now cites the article"],
+      ["kbagent", "audit", "kb_draft_created / approved / rejected"],
+    ] },
+  { id: "itsm", name: "ServiceNow sync", desc: "Incidents come from the ServiceNow mock, the screen refreshes itself, and resolutions are written back.",
+    steps: [
+      ["shell", "uicommon", "Auto-refresh every 15 s checks the data signature"],
+      ["uicommon", "snowconn", "latest_update() for change detection"],
+      ["snowconn", "snow", "GET /api/now/table/incident"],
+      ["uicommon", "knowledge", "Rebuild when something changed"],
+      ["knowledge", "snowconn", "fetch_incidents() (paged)"],
+      ["cockpit", "snowconn", "Resolve or escalate"],
+      ["snowconn", "snow", "PATCH /api/now/table/incident/{sys_id}"],
+      ["cockpit", "audit", "Log itsm_synced or itsm_sync_failed"],
+      ["snowuser", "snow", "Check the update in incident_list.do"],
+    ] },
+  { id: "index", name: "Knowledge indexing", desc: "What happens on start-up or when a source changes, before any question is asked.",
+    steps: [
+      ["uicommon", "knowledge", "Cache miss: load documents and incidents"],
+      ["knowledge", "bundled", "Read runbooks and (if ServiceNow is off) the workbook"],
+      ["knowledge", "volume", "Read approved articles in knowledge/"],
+      ["knowledge", "masking", "Mask secrets and PII at ingestion"],
+      ["knowledge", "retrieval", "Build the TF-IDF index"],
+      ["engine", "config", "Thresholds: 0.40 high, 0.20 minimum"],
+    ] },
+  { id: "access", name: "Sign-in & devices", desc: "Sign-in is off for now, so people pick their user in the top bar. Steps 1 to 3 apply once COPILOT_AUTH=on.",
+    steps: [
+      ["desktop", "signin", "User id and password (when COPILOT_AUTH=on)"],
+      ["signin", "config", "Compare with COPILOT_PASSWORD_<USER_ID>"],
+      ["signin", "shell", "Session holds user id and role (today: the picker)"],
+      ["phone", "shell", "User-Agent says phone"],
+      ["shell", "mobile", "Route to the mobile page"],
+      ["shell", "cockpit", "Desktop route"],
+    ] },
+  { id: "deploy", name: "Deploy", desc: "From a push on GitHub to two running services on Railway.",
+    steps: [
+      ["github", "build", "Push to main triggers a build"],
+      ["build", "shell", "Copilot service: Streamlit on $PORT"],
+      ["build", "snow", "Mock service: APP_ROLE=servicenow-mock"],
+      ["volume", "audit", "Volume mounted at /data keeps logs across deploys"],
+      ["snowconn", "snow", "Public https URL, no port"],
+    ] },
+];
+
+// ---------- rendering ----------
+const svgNS = "http://www.w3.org/2000/svg";
+const $ = (id) => document.getElementById(id);
+const el = (tag, attrs = {}, parent) => {
+  const e = document.createElementNS(svgNS, tag);
+  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, v);
+  if (parent) parent.appendChild(e);
+  return e;
+};
+for (const n of Object.values(N)) n.h = n.h || 54;
+
+FRAMES.forEach((f) => {
+  el("rect", { x: f.x, y: f.y, width: f.w, height: f.h, rx: 10, class: "zoneframe" }, $("frames"));
+  el("text", f.end ? { x: f.x + f.w - 12, y: f.y + 22, class: "zonelabel", "text-anchor": "end" } : { x: f.x + 12, y: f.y + 22, class: "zonelabel" }, $("frames")).textContent = f.label;
+});
+ROWS.forEach((r) => { el("text", { x: 194, y: r.y, class: "rowlabel" }, $("frames")).textContent = r.t; });
+
+const nodeEls = {};
+for (const [id, n] of Object.entries(N)) {
+  const g = el("g", { class: "node", tabindex: 0, role: "button", "aria-label": `${n.t}: ${n.s}`, "data-id": id }, $("nodes"));
+  el("rect", { x: n.x, y: n.y, width: n.w, height: n.h, rx: 7, class: "box" }, g);
+  el("rect", { x: n.x + 1, y: n.y + 8, width: 3, height: n.h - 16, rx: 1.5, class: "tag", fill: ZONE[n.zone][1] }, g);
+  el("text", { x: n.x + 12, y: n.y + 23, class: "t" }, g).textContent = n.t;
+  el("text", { x: n.x + 12, y: n.y + 41, class: "s" }, g).textContent = n.s;
+  g.addEventListener("click", () => selectNode(id, true));
+  g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); selectNode(id, true); } });
+  nodeEls[id] = g;
+}
+
+function geom(a, b) {
+  const A = N[a], B = N[b];
+  const overlapX = !(B.x > A.x + A.w || B.x + B.w < A.x);
+  let p1, p2, d;
+  if (!overlapX) {
+    const right = B.x > A.x;
+    p1 = [right ? A.x + A.w : A.x, A.y + A.h / 2];
+    p2 = [right ? B.x : B.x + B.w, B.y + B.h / 2];
+    const c = Math.max(30, Math.abs(p2[0] - p1[0]) / 2) * (right ? 1 : -1);
+    d = `M${p1[0]},${p1[1]} C${p1[0] + c},${p1[1]} ${p2[0] - c},${p2[1]} ${p2[0]},${p2[1]}`;
+  } else {
+    const down = B.y > A.y;
+    const ax = A.x + A.w / 2, bx = B.x + B.w / 2;
+    p1 = [ax, down ? A.y + A.h : A.y];
+    p2 = [bx, down ? B.y : B.y + B.h];
+    const c = Math.max(20, Math.abs(p2[1] - p1[1]) / 2) * (down ? 1 : -1);
+    d = `M${p1[0]},${p1[1]} C${p1[0]},${p1[1] + c} ${p2[0]},${p2[1] - c} ${p2[0]},${p2[1]}`;
+  }
+  return { d, mid: bez(p1, p2, d) };
+}
+function bez(p1, p2, d) {
+  const nums = d.match(/-?\d+(\.\d+)?/g).map(Number);
+  const [x0, y0, x1, y1, x2, y2, x3, y3] = nums, t = 0.5, u = 1 - t;
+  return [u*u*u*x0 + 3*u*u*t*x1 + 3*u*t*t*x2 + t*t*t*x3, u*u*u*y0 + 3*u*u*t*y1 + 3*u*t*t*y2 + t*t*t*y3];
+}
+
+const edgeEls = {};
+const allPairs = new Set();
+FLOWS.forEach((f) => f.steps.forEach(([a, b]) => allPairs.add(`${a}>${b}`)));
+for (const key of allPairs) {
+  const [a, b] = key.split(">");
+  const { d } = geom(a, b);
+  edgeEls[key] = el("path", { d, class: "edge", "marker-end": "url(#arrow)" }, $("edges"));
+}
+
+// ---------- state ----------
+let flow = null, node = null, focusStep = -1;
+
+function clearHighlights() {
+  Object.values(edgeEls).forEach((e) => e.classList.remove("on", "focus"));
+  Object.values(nodeEls).forEach((g) => g.classList.remove("on", "sel"));
+  $("badges").replaceChildren();
+}
+
+function drawFlow() {
+  clearHighlights();
+  const svg = $("svg");
+  svg.classList.toggle("dim", !!flow || !!node);
+  if (flow) {
+    const seen = {};
+    flow.steps.forEach(([a, b, label], i) => {
+      const key = `${a}>${b}`;
+      edgeEls[key].classList.add("on");
+      if (i === focusStep) edgeEls[key].classList.add("focus");
+      nodeEls[a].classList.add("on"); nodeEls[b].classList.add("on");
+      const { mid } = geom(a, b);
+      const off = (seen[key] = (seen[key] || 0) + 1) - 1;
+      const g = el("g", { class: "badge" }, $("badges"));
+      el("circle", { cx: mid[0] + off * 22, cy: mid[1], r: 10 }, g);
+      el("text", { x: mid[0] + off * 22, y: mid[1] + 0.5 }, g).textContent = i + 1;
+      if (i === focusStep) {
+        const lg = el("g", { class: "elabel" }, $("badges"));
+        const t = el("text", { x: mid[0], y: mid[1] - 24 }, lg);
+        t.textContent = label;
+        const w = Math.min(label.length * 7 + 18, 420);
+        const r = el("rect", { x: mid[0] - w / 2, y: mid[1] - 36, width: w, height: 24, rx: 5 });
+        lg.insertBefore(r, t);
+      }
+    });
+  } else if (node) {
+    for (const [key, e] of Object.entries(edgeEls)) {
+      const [a, b] = key.split(">");
+      if (a === node || b === node) { e.classList.add("on"); nodeEls[a].classList.add("on"); nodeEls[b].classList.add("on"); }
+    }
+  }
+  if (node) nodeEls[node].classList.add("sel");
+}
+
+function renderFlows() {
+  const box = $("flows");
+  box.replaceChildren();
+  FLOWS.forEach((f) => {
+    const b = document.createElement("button");
+    b.type = "button"; b.id = `flow-${f.id}`; b.textContent = f.name;
+    b.setAttribute("aria-pressed", flow === f ? "true" : "false");
+    b.addEventListener("click", () => setFlow(flow === f ? null : f));
+    box.appendChild(b);
+  });
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.id = "flow-none"; btn.textContent = "Show all";
+  btn.setAttribute("aria-pressed", flow ? "false" : "true");
+  btn.addEventListener("click", () => { node = null; setFlow(null); });
+  box.appendChild(btn);
+
+  $("flowdesc").textContent = flow ? flow.desc : "No flow selected. Every connection is drawn faintly; choose a flow above to number its steps.";
+  const ol = $("steps");
+  ol.replaceChildren();
+  (flow ? flow.steps : []).forEach(([a, b, label], i) => {
+    const li = document.createElement("li");
+    const bt = document.createElement("button");
+    bt.type = "button"; if (i === focusStep) bt.className = "on";
+    bt.innerHTML = `<span class="n">${i + 1}</span><span><span class="what"></span><span class="route"></span></span>`;
+    bt.querySelector(".what").textContent = label;
+    bt.querySelector(".route").textContent = `${N[a].t} → ${N[b].t}`;
+    bt.addEventListener("click", () => { focusStep = focusStep === i ? -1 : i; node = b; renderFlows(); drawFlow(); renderInspector(); });
+    li.appendChild(bt); ol.appendChild(li);
+  });
+}
+
+function setFlow(f) {
+  flow = f; focusStep = -1;
+  if (f) node = null;
+  try { localStorage.setItem("arch-flow", f ? f.id : ""); } catch (e) {}
+  renderFlows(); drawFlow(); renderInspector();
+}
+
+function selectNode(id, fromMap) {
+  node = node === id && fromMap ? null : id;
+  if (fromMap) { flow = null; focusStep = -1; renderFlows(); }
+  drawFlow(); renderInspector();
+}
+
+function renderInspector() {
+  const box = $("inspector");
+  if (!node) {
+    box.innerHTML = `<p style="margin:0">Click a box on the map to see its file, its job and what it connects to.
+      The copilot service has 21 parts in three layers; Groq, the ServiceNow mock and the Railway volume sit outside it.</p>`;
+    return;
+  }
+  const n = N[node];
+  const out = [], inn = [];
+  for (const key of allPairs) {
+    const [a, b] = key.split(">");
+    if (a === node) out.push(b); else if (b === node) inn.push(a);
+  }
+  const uniq = (xs) => [...new Set(xs)];
+  const linkList = (ids) => ids.length ? `<div class="links">${uniq(ids).map((i) => `<button type="button" data-go="${i}">${N[i].t}</button>`).join("")}</div>` : "—";
+  const flowsHere = FLOWS.filter((f) => f.steps.some(([a, b]) => a === node || b === node));
+  box.innerHTML = `
+    <div class="zone" style="color:${ZONE[n.zone][1]}">${ZONE[n.zone][0]}</div>
+    <h3></h3>
+    <div class="file"></div>
+    <p class="what"></p>
+    <dl>
+      <dt>Calls / sends to</dt><dd>${linkList(out)}</dd>
+      <dt>Called by</dt><dd>${linkList(inn)}</dd>
+      <dt>In flows</dt><dd>${flowsHere.length ? `<div class="links">${flowsHere.map((f) => `<button type="button" data-flow="${f.id}">${f.name}</button>`).join("")}</div>` : "—"}</dd>
+      ${n.notes.length ? `<dt>Details</dt><dd><ul class="notes"></ul></dd>` : ""}
+    </dl>`;
+  box.querySelector("h3").textContent = n.t;
+  box.querySelector(".file").textContent = n.s;
+  box.querySelector(".what").textContent = n.what;
+  const ul = box.querySelector(".notes");
+  if (ul) n.notes.forEach((t) => { const li = document.createElement("li"); li.textContent = t; ul.appendChild(li); });
+  box.querySelectorAll("[data-go]").forEach((b) => b.addEventListener("click", () => {
+    flow = null; focusStep = -1; node = b.dataset.go; renderFlows(); drawFlow(); renderInspector();
+  }));
+  box.querySelectorAll("[data-flow]").forEach((b) => b.addEventListener("click", () => {
+    const f = FLOWS.find((x) => x.id === b.dataset.flow); const keep = node; setFlow(f); node = keep; drawFlow(); renderInspector();
+  }));
+}
+
+// Start on the core RAG flow so the first view already shows a traced request.
+let start = "rag";
+const hash = (location.hash || "").replace("#", "");
+try { const saved = localStorage.getItem("arch-flow"); if (saved !== null) start = saved; } catch (e) {}
+if (FLOWS.some((f) => f.id === hash)) start = hash;
+setFlow(FLOWS.find((f) => f.id === start) || null);
+</script>

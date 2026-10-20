@@ -7,6 +7,9 @@ on every step. The engineer reviews it and decides. The copilot is read-only and
 
 Stack: Streamlit, Groq (`openai/gpt-oss-120b` by default), and hybrid TF-IDF retrieval (scikit-learn).
 
+Architecture: [`design/architecture.html`](design/architecture.html) is an interactive map of every
+component, with step-by-step traces of the main flows. Download it and open it in a browser.
+
 ## Run
 
 ```bash
